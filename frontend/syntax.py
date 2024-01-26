@@ -1,6 +1,7 @@
+import re
+
 from etc import CustomEnum, join_bounded_keywords_as_regex, bounded
 from tokens import TokenType
-import re
 
 
 class SimpleType(CustomEnum):
@@ -90,8 +91,6 @@ class Operator(CustomEnum):
     EQUAL = "=="
     STRICT_EQUAL = "==="
     NOT_STRICT_EQUAL = "!=="
-
-
 
     # syntax sugar
     FUNCTIONAL = "@"

@@ -1,10 +1,11 @@
-from tokens import TokenType, Token
-from exceptions import ParsingException
-from syntax import Operator, Keyword, Assignment, TypeModifier
-from semantics import TypeModifierFlag
-from typing import Iterator, KeysView, ValuesView
-from abstract_syntax_tree import *
 from enum import IntFlag
+
+from abstract_syntax_tree import *
+from exceptions import ParsingException
+from semantics import TypeModifierFlag
+from syntax import Operator, Keyword, Assignment, TypeModifier
+from tokens import TokenType, Token
+from typing import Iterator, KeysView, ValuesView, NoReturn, Literal
 
 
 class ContextFlag(IntFlag):
@@ -15,10 +16,6 @@ class ContextFlag(IntFlag):
     LOOP = 0b1001
     IF_CLAUSE = 0b10001
     TRY_CLAUSE = 0b100001
-    ANY_EXPRESSION = 0b1000001
-    ARITHMETIC_EXPRESSION = 0b11000001
-    # BOOLEAN_EXPRESSION = 0b
-    # TYPE_DECLARATION = 0b11000001  # TODO: really?
 
     @staticmethod
     def match(current_context, flag) -> bool:
@@ -113,7 +110,11 @@ class Parser(object):
                        f"but got {token.type} (Token type {token.type})")
             self.error(msg)
 
-    def error(self, msg: str) -> None:
+    def line_and_position_of_consumed_token(self) -> tuple[int, int]:
+        # TODO: description
+        return self._prev_token.line_number, self._prev_token.position
+
+    def error(self, msg: str) -> NoReturn:
         """
         Raise an error message, with sufficient information to user
         which token (line and position in the code) is invalid.
@@ -134,6 +135,7 @@ class Parser(object):
         class_definitions = []
         function_definitions = []
         statements = []
+
         while self.current_token.type != TokenType.END_OF_CODE:
             statement = self.parse_statement(ContextFlag.GLOBAL)
             if isinstance(statement, FunctionDeclarationNode):
@@ -230,11 +232,16 @@ class Parser(object):
         return self.parse_full_expression(context)
 
     def parse_full_statement_beginning_with_identifier(self, context: ContextFlag):
-        # TODO: context
+
+        # my_class x ...
         if self.next_token.type == TokenType.IDENTIFIER:
             return self.parse_full_variable_declaration(context)
+
+        # x := ...
         elif self.next_token.type == TokenType.GENERIC_ASSIGNMENT:
             return self.parse_full_expression(context)
+
+        # my_class[integer] x ...; x[5] := ...; x();
         else:
             return self.parse_full_expression(context, possibly_type=True)
 
@@ -244,6 +251,8 @@ class Parser(object):
         current_context = ContextFlag.add(context, ContextFlag.LOCAL)
 
         self.consume(TokenType.BEGIN_OF_SCOPE)
+        line, position = self.line_and_position_of_consumed_token()
+
         statements = []
         local_variables = []
 
@@ -262,16 +271,18 @@ class Parser(object):
                 met_finalizer = True
 
         self.consume(TokenType.END_OF_SCOPE)
-        return ScopeNode(statements, local_variables, )
+        return ScopeNode(statements, local_variables, line, position)
 
     def parse_full_if_else_statement(self, context: ContextFlag):
         current_context = ContextFlag.add(context, ContextFlag.IF_CLAUSE)
 
         self.consume(TokenType.KEYWORD, Keyword.IF)
+        line, position = self.line_and_position_of_consumed_token()
+
         condition = self._parse_condition(current_context)
         if_scope = self.parse_scope(current_context)
 
-        root_node = IfElseNode(condition, if_scope, None)
+        root_node = IfElseNode(condition, if_scope, None, line, position)
         current_node = root_node
 
         while self.current_token.type == TokenType.KEYWORD and self.current_token.value == Keyword.ELSE:
@@ -280,10 +291,12 @@ class Parser(object):
             if self.current_token.type == TokenType.KEYWORD and self.current_token.value == Keyword.IF:
                 # Handle "else if" condition
                 self.consume(TokenType.KEYWORD, Keyword.IF)
+                line, position = self.line_and_position_of_consumed_token()
+
                 elif_condition = self._parse_condition(current_context)
                 elif_scope = self.parse_scope(current_context)
 
-                obj = IfElseNode(elif_condition, elif_scope, None)
+                obj = IfElseNode(elif_condition, elif_scope, None, line, position)
                 current_node.else_node = obj
                 current_node = obj
             else:
@@ -295,7 +308,6 @@ class Parser(object):
         return root_node
 
     def _parse_condition(self, context: ContextFlag) -> ASTNode:
-        # TODO: context
         self.consume(TokenType.OPENING_PARENTHESIS)
         condition = self.parse_arithmetic_expression(context)
         self.consume(TokenType.CLOSING_PARENTHESIS)
@@ -307,11 +319,13 @@ class Parser(object):
         current_context = ContextFlag.add(context, ContextFlag.LOOP)
 
         self.consume(TokenType.KEYWORD, Keyword.WHILE)
+        line, position = self.line_and_position_of_consumed_token()
+
         condition = self._parse_condition(current_context)
         while_scope = self.parse_scope(current_context)
         if self.current_token.type == TokenType.END_OF_STATEMENT:
             self.consume(TokenType.END_OF_STATEMENT)
-        return WhileNode(condition, while_scope)
+        return WhileNode(condition, while_scope, line, position)
 
     def parse_full_break_statement(self) -> BreakNode:
         """
@@ -321,8 +335,9 @@ class Parser(object):
         :return: BreakNode instance
         """
         self.consume(TokenType.KEYWORD, Keyword.BREAK)
+        line, position = self.line_and_position_of_consumed_token()
         self.consume(TokenType.END_OF_STATEMENT)
-        return BreakNode()
+        return BreakNode(line, position)
 
     def parse_full_continue_statement(self) -> ContinueNode:
         """
@@ -332,14 +347,16 @@ class Parser(object):
         :return: ContinueNode instance
         """
         self.consume(TokenType.KEYWORD, Keyword.CONTINUE)
+        line, position = self.line_and_position_of_consumed_token()
         self.consume(TokenType.END_OF_STATEMENT)
-        return ContinueNode()
+        return ContinueNode(line, position)
 
     # FUNCTION DECLARATION
     def parse_full_function_declaration(self, context: ContextFlag) -> FunctionDeclarationNode:
         current_context = ContextFlag.add(context, ContextFlag.FUNCTION)
 
         self.consume(TokenType.KEYWORD, Keyword.FUNCTION)
+        line, position = self.line_and_position_of_consumed_token()
 
         return_type = None
         if self.current_token.type == TokenType.OPENING_SQUARE_BRACKET:
@@ -355,28 +372,25 @@ class Parser(object):
         if self.current_token.type == TokenType.END_OF_STATEMENT:
             self.consume(TokenType.END_OF_STATEMENT)
 
-        return FunctionDeclarationNode(return_type, function_name, parameters, function_body)
+        return FunctionDeclarationNode(return_type, function_name, parameters, function_body, line, position)
 
     def _parse_function_parameters(self, context: ContextFlag) -> list[FunctionParameter]:
-        # TODO: context
         self.consume(TokenType.OPENING_PARENTHESIS)
         parameters = []
         while self.current_token.type != TokenType.CLOSING_PARENTHESIS:
             type_node = self.parse_type_declaration(context)
 
             parameter_name = self.consume(TokenType.IDENTIFIER)
+            line, position = self.line_and_position_of_consumed_token()
 
             default_value = None
-            operator_type = None
             if self.current_token.type == TokenType.GENERIC_ASSIGNMENT:
 
-                operator_type = self.consume(
-                    TokenType.GENERIC_ASSIGNMENT,
-                    (Assignment.VALUE_ASSIGNMENT, Assignment.REFERENCE_ASSIGNMENT)
-                )
+                # forbid reference defaults
+                self.consume(TokenType.GENERIC_ASSIGNMENT, Assignment.VALUE_ASSIGNMENT)
                 default_value = self.parse_arithmetic_expression(context)
 
-            parameters.append(FunctionParameter(type_node, parameter_name, operator_type, default_value))
+            parameters.append(FunctionParameter(type_node, parameter_name, default_value, line, position))
 
             if self.current_token.type == TokenType.COMMA:
                 self.consume(TokenType.COMMA)
@@ -385,43 +399,40 @@ class Parser(object):
 
     def parse_full_return_statement(self, context: ContextFlag) -> ReturnNode:
         self.consume(TokenType.KEYWORD, Keyword.RETURN)
+        line, position = self.line_and_position_of_consumed_token()
         expression = self.parse_arithmetic_expression(context)
         self.consume(TokenType.END_OF_STATEMENT)
-        return ReturnNode(expression)
+        return ReturnNode(expression, line, position)
 
     # TODO: try-catch-else-finally, keyword recognition
     # TODO: for, class declaration, class methods
-    # TODO: slices, better keymap declaration
+    # TODO: slices
     def parse_full_variable_declaration(self, context: ContextFlag):
-        # TODO: context
         type_node = self.parse_type_declaration(context)
         return self._parse_partial_variable_expression(type_node, context)
 
     def _parse_partial_variable_expression(self, type_node: ASTNode, context: ContextFlag):
-        # TODO: context
         identifier = self.consume(TokenType.IDENTIFIER)
+        line, position = self.line_and_position_of_consumed_token()
 
         if self.current_token.type == TokenType.GENERIC_ASSIGNMENT:
             operator = self.consume(TokenType.GENERIC_ASSIGNMENT)
             expression_node = self.parse_assignment_expression(context)
-            result = VariableDeclarationNode(type_node, identifier, operator, expression_node)
+            result = VariableDeclarationNode(type_node, identifier, operator, expression_node, line, position)
         else:
-            result = VariableDeclarationNode(type_node, identifier, None, TokenType.UNDEFINED_LITERAL)
+            result = VariableDeclarationNode(type_node, identifier, None, TokenType.UNDEFINED_LITERAL, line, position)
 
         self.consume(TokenType.END_OF_STATEMENT)
         return result
 
     def parse_full_expression(self, context, **kwargs):
-        # TODO: context
         result = self.parse_assignment_expression(context, **kwargs)
         if kwargs.get("possibly_type") and self.current_token.type == TokenType.IDENTIFIER:
             return self._parse_partial_variable_expression(result, context)
         self.consume(TokenType.END_OF_STATEMENT)
         return result
 
-    # TODO: nodes
     def parse_type_declaration(self, context: ContextFlag):
-        # TODO: context
         # Check for const or reference modifiers
         modifiers = []
         while self.current_token.type == TokenType.TYPE_MODIFIER:
@@ -442,12 +453,11 @@ class Parser(object):
 
         return base_type
 
-    # TODO: better generic parsing
     def parse_base_type(self, context: ContextFlag) -> TypeNode:
-        # TODO: context
         if self.current_token.type == TokenType.SIMPLE_TYPE:
             type_name = self.consume(TokenType.SIMPLE_TYPE)
-            return SimpleTypeNode(type_name)
+            line, position = self.line_and_position_of_consumed_token()
+            return SimpleTypeNode(type_name, line, position)
 
         elif self.current_token.type == TokenType.COMPOUND_TYPE:
             return self.parse_compound_types(context=context)
@@ -460,12 +470,13 @@ class Parser(object):
 
     def parse_compound_types(self, context: ContextFlag) -> CompoundTypeNode:
         compound_type = self.consume(TokenType.COMPOUND_TYPE)
+        line, position = self.line_and_position_of_consumed_token()
 
         parameters = []
         if self.current_token.type == TokenType.OPENING_SQUARE_BRACKET:
-            parameters = self.__parse_square_bracket_content(allow_keymap_or_slice=False, context=context)
+            parameters = self.__parse_square_bracket_content(allow_keymaps=False, context=context)
 
-        return CompoundTypeNode(compound_type, parameters)
+        return CompoundTypeNode(compound_type, parameters, line, position)
 
     def parse_arithmetic_expression(self, context: ContextFlag, **kwargs):
         return self.parse_logical_or_expression(context, **kwargs)
@@ -485,13 +496,13 @@ class Parser(object):
         :return: Assignment node if assignment is present,
         otherwise anything the primary parser will return.
         """
-        # TODO: context
         left_expr = self.parse_logical_or_expression(context, **kwargs)
 
         while self.current_token.type == TokenType.GENERIC_ASSIGNMENT:
             operator = self.consume(TokenType.GENERIC_ASSIGNMENT)
+            line, position = self.line_and_position_of_consumed_token()
             right_expr = self.parse_logical_or_expression(context, **kwargs)
-            left_expr = AssignmentNode(left_expr, operator, right_expr)
+            left_expr = AssignmentNode(left_expr, operator, right_expr, line, position)
 
         return left_expr
 
@@ -509,8 +520,9 @@ class Parser(object):
 
         while self.current_token.value in (Operator.OR, Operator.FULL_OR):
             operator = self.consume(TokenType.OPERATOR)
+            line, position = self.line_and_position_of_consumed_token()
             right = self.parse_logical_xor_expression(context, **kwargs)
-            left = LogicalOperatorNode(left=left, operator=operator, right=right)
+            left = LogicalOperatorNode(left=left, operator=operator, right=right, line=line, position=position)
 
         return left
 
@@ -528,8 +540,9 @@ class Parser(object):
 
         while self.current_token.value in (Operator.XOR, Operator.FULL_XOR):
             operator = self.consume(TokenType.OPERATOR)
+            line, position = self.line_and_position_of_consumed_token()
             right = self.parse_logical_and_expression(context, **kwargs)
-            left = LogicalOperatorNode(left=left, operator=operator, right=right)
+            left = LogicalOperatorNode(left=left, operator=operator, right=right, line=line, position=position)
 
         return left
 
@@ -547,8 +560,9 @@ class Parser(object):
 
         while self.current_token.value in (Operator.AND, Operator.FULL_AND):
             operator = self.consume(TokenType.OPERATOR)
+            line, position = self.line_and_position_of_consumed_token()
             right = self.parse_bitwise_or_expression(context, **kwargs)
-            left = LogicalOperatorNode(left=left, operator=operator, right=right)
+            left = LogicalOperatorNode(left=left, operator=operator, right=right, line=line, position=position)
 
         return left
 
@@ -566,8 +580,9 @@ class Parser(object):
 
         while self.current_token.value == Operator.BITWISE_OR:
             operator = self.consume(TokenType.OPERATOR)
+            line, position = self.line_and_position_of_consumed_token()
             right = self.parse_bitwise_xor_expression(context, **kwargs)
-            left = ArithmeticOperatorNode(left=left, operator=operator, right=right)
+            left = ArithmeticOperatorNode(left=left, operator=operator, right=right, line=line, position=position)
 
         return left
 
@@ -585,8 +600,9 @@ class Parser(object):
 
         while self.current_token.value == Operator.BITWISE_XOR:
             operator = self.consume(TokenType.OPERATOR)
+            line, position = self.line_and_position_of_consumed_token()
             right = self.parse_bitwise_and_expression(context, **kwargs)
-            left = ArithmeticOperatorNode(left=left, operator=operator, right=right)
+            left = ArithmeticOperatorNode(left=left, operator=operator, right=right, line=line, position=position)
 
         return left
 
@@ -604,8 +620,9 @@ class Parser(object):
 
         while self.current_token.value == Operator.BITWISE_AND:
             operator = self.consume(TokenType.OPERATOR)
+            line, position = self.line_and_position_of_consumed_token()
             right = self.parse_equality_expression(context, **kwargs)
-            left = ArithmeticOperatorNode(left=left, operator=operator, right=right)
+            left = ArithmeticOperatorNode(left=left, operator=operator, right=right, line=line, position=position)
 
         return left
 
@@ -631,9 +648,10 @@ class Parser(object):
         ):
 
             operator = self.consume(TokenType.OPERATOR)
+            line, position = self.line_and_position_of_consumed_token()
             right = self.parse_comparison_expression(context, **kwargs)
 
-            statements.append(ComparisonNode(left=left, operator=operator, right=right))
+            statements.append(ComparisonNode(left=left, operator=operator, right=right, line=line, position=position))
             left = right
 
         if not statements:
@@ -663,9 +681,10 @@ class Parser(object):
             Operator.GREATER
         ):
             operator = self.consume(TokenType.OPERATOR)
+            line, position = self.line_and_position_of_consumed_token()
             right = self.parse_bitwise_shift_expression(context, **kwargs)
 
-            statements.append(ComparisonNode(left=left, operator=operator, right=right))
+            statements.append(ComparisonNode(left=left, operator=operator, right=right, line=line, position=position))
             left = right
 
         if not statements:
@@ -720,8 +739,9 @@ class Parser(object):
 
         while self.current_token.value in (Operator.BITWISE_LSHIFT, Operator.BITWISE_RSHIFT):
             operator = self.consume(TokenType.OPERATOR)
+            line, position = self.line_and_position_of_consumed_token()
             right = self.parse_additive_expression(context, **kwargs)
-            left = ArithmeticOperatorNode(left=left, operator=operator, right=right)
+            left = ArithmeticOperatorNode(left=left, operator=operator, right=right, line=line, position=position)
 
         return left
 
@@ -739,8 +759,9 @@ class Parser(object):
 
         while self.current_token.value in (Operator.PLUS, Operator.MINUS):
             operator = self.consume(TokenType.OPERATOR)
+            line, position = self.line_and_position_of_consumed_token()
             right = self.parse_multiplicative_expression(context, **kwargs)
-            left = ArithmeticOperatorNode(left=left, operator=operator, right=right)
+            left = ArithmeticOperatorNode(left=left, operator=operator, right=right, line=line, position=position)
 
         return left
 
@@ -758,8 +779,9 @@ class Parser(object):
 
         while self.current_token.value in (Operator.MULTIPLY, Operator.DIVIDE, Operator.FLOOR_DIVIDE, Operator.MODULO):
             operator = self.consume(TokenType.OPERATOR)
+            line, position = self.line_and_position_of_consumed_token()
             right = self.parse_arithmetic_unary_expression(context, **kwargs)
-            left = ArithmeticOperatorNode(left=left, operator=operator, right=right)
+            left = ArithmeticOperatorNode(left=left, operator=operator, right=right, line=line, position=position)
 
         return left
 
@@ -775,8 +797,9 @@ class Parser(object):
         """
         if self.current_token.value in (Operator.PLUS, Operator.MINUS, Operator.BITWISE_INVERSE):
             operator = self.consume(TokenType.OPERATOR)
+            line, position = self.line_and_position_of_consumed_token()
             right = self.parse_power_expression(context, **kwargs)
-            return UnaryOperatorNode(operator=operator, expression=right)
+            return UnaryOperatorNode(operator=operator, expression=right, line=line, position=position)
         else:
             return self.parse_power_expression(context, **kwargs)
 
@@ -792,21 +815,26 @@ class Parser(object):
         """
         left = self.parse_other_unary_expression(context, **kwargs)
         right_expressions = [left]
+        operators_positions = []
 
         while self.current_token.value == Operator.POWER:
             _ = self.consume(TokenType.OPERATOR)
+            line, position = self.line_and_position_of_consumed_token()
             right = self.parse_other_unary_expression(context, **kwargs)
             right_expressions.append(right)
+            operators_positions.append((line, position))
 
         if len(right_expressions) == 1:
             return left
 
         result = ArithmeticOperatorNode(
-            left=right_expressions[-2], operator=Operator.POWER, right=right_expressions[-1]
+            left=right_expressions[-2], operator=Operator.POWER, right=right_expressions[-1],
+            line=operators_positions[-1][0], position=operators_positions[-1][1]
         )
-        for _left in reversed(right_expressions[:-2]):
+        for _left, (_line, _position) in reversed(list(zip(right_expressions[:-2], operators_positions[:-1]))):
             result = ArithmeticOperatorNode(
-                left=_left, operator=Operator.POWER, right=result
+                left=_left, operator=Operator.POWER, right=result,
+                line=_line, position=_position
             )
 
         return result
@@ -823,8 +851,9 @@ class Parser(object):
         """
         if self.current_token.value == Operator.NOT:
             operator = self.consume(TokenType.OPERATOR)
+            line, position = self.line_and_position_of_consumed_token()
             right = self.parse_dynamic_memory_allocation(context, **kwargs)
-            return UnaryOperatorNode(operator=operator, expression=right)
+            return UnaryOperatorNode(operator=operator, expression=right, line=line, position=position)
         else:
             return self.parse_dynamic_memory_allocation(context, **kwargs)
 
@@ -838,10 +867,16 @@ class Parser(object):
         :return: Allocation operator node if other unary operators dynamic memory allocation are present,
         otherwise anything the next precedence (member access) parser will return.
         """
-        if self.current_token.value in (Operator.NEW_INSTANCE, Operator.DELETE_INSTANCE):
-            operator = self.consume(TokenType.OPERATOR)
-            right = self.parse_type_declaration(context)  # TODO: check
-            return AllocationOperatorNode(operator=operator, expression=right)
+        if self.current_token.value == Operator.NEW_INSTANCE:
+            operator = self.consume(TokenType.OPERATOR, Operator.NEW_INSTANCE)
+            line, position = self.line_and_position_of_consumed_token()
+            right = self.parse_base_type(context)  # TODO: check
+            return AllocationOperatorNode(operator=operator, expression=right, line=line, position=position)
+        elif self.current_token.value == Operator.DELETE_INSTANCE:
+            operator = self.consume(TokenType.OPERATOR, Operator.DELETE_INSTANCE)
+            line, position = self.line_and_position_of_consumed_token()
+            right = self.parse_identifier(context, pure_identifier=True)
+            return AllocationOperatorNode(operator=operator, expression=right, line=line, position=position)
         else:
             return self.parse_member_access(context, **kwargs)
 
@@ -859,64 +894,72 @@ class Parser(object):
 
         while self.current_token.value in (Operator.OBJECT_MEMBER_ACCESS, Operator.REFERENCE_MEMBER_ACCESS):
             operator = self.consume(TokenType.OPERATOR)
+            line, position = self.line_and_position_of_consumed_token()
             right = self.parse_primary_expression(context, **kwargs)
-            left = MemberOperatorNode(left=left, operator=operator, right=right)
+            left = MemberOperatorNode(left=left, operator=operator, right=right, line=line, position=position)
         return left
 
     def parse_primary_expression(self, context: ContextFlag, **kwargs):
-        # TODO: context
-        if self.current_token.type == TokenType.DECIMAL_INTEGER_LITERAL:
-            return IntegerLiteralNode(value=self.consume(TokenType.DECIMAL_INTEGER_LITERAL), base=10)
-
-        if self.current_token.type == TokenType.HEXADECIMAL_INTEGER_LITERAL:
-            return IntegerLiteralNode(value=self.consume(TokenType.HEXADECIMAL_INTEGER_LITERAL), base=16)
-
-        if self.current_token.type == TokenType.OCTAL_INTEGER_LITERAL:
-            return IntegerLiteralNode(value=self.consume(TokenType.OCTAL_INTEGER_LITERAL), base=8)
-
-        if self.current_token.type == TokenType.BINARY_INTEGER_LITERAL:
-            return IntegerLiteralNode(value=self.consume(TokenType.BINARY_INTEGER_LITERAL), base=2)
+        if self.current_token.type in (
+            TokenType.DECIMAL_INTEGER_LITERAL,
+            TokenType.HEXADECIMAL_INTEGER_LITERAL,
+            TokenType.OCTAL_INTEGER_LITERAL,
+            TokenType.BINARY_INTEGER_LITERAL
+        ):
+            return self.parse_integer()
 
         if self.current_token.type == TokenType.IMAGINARY_FLOAT_LITERAL:
-            return ImaginaryFloatLiteralNode(value=self.consume(TokenType.IMAGINARY_FLOAT_LITERAL))
+            value = self.consume(TokenType.IMAGINARY_FLOAT_LITERAL)
+            line, position = self.line_and_position_of_consumed_token()
+            return ImaginaryFloatLiteralNode(value=value, line=line, position=position)
 
         if self.current_token.type == TokenType.FLOAT_LITERAL:
-            return FloatLiteralNode(value=self.consume(TokenType.FLOAT_LITERAL))
+            value = self.consume(TokenType.FLOAT_LITERAL)
+            line, position = self.line_and_position_of_consumed_token()
+            return FloatLiteralNode(value=value, line=line, position=position)
 
         if self.current_token.type == TokenType.OPERATOR and self.current_token.value == Operator.DEDUCTION:
             self.consume(TokenType.OPERATOR, Operator.DEDUCTION)
-            return DeductionNode()
+            line, position = self.line_and_position_of_consumed_token()
+            return DeductionNode(line=line, position=position)
 
         elif self.current_token.type == TokenType.IDENTIFIER:
             return self.parse_identifier(context, **kwargs)
 
         elif self.current_token.type == TokenType.STRING_LITERAL:
             value = self.consume(TokenType.STRING_LITERAL)
-            return StringLiteralNode(value)
+            line, position = self.line_and_position_of_consumed_token()
+            return StringLiteralNode(value, line=line, position=position)
 
         elif self.current_token.type == TokenType.CHAR_LITERAL:
             value = self.consume(TokenType.CHAR_LITERAL)
-            return CharLiteralNode(value)
+            line, position = self.line_and_position_of_consumed_token()
+            return CharLiteralNode(value, line=line, position=position)
 
         elif self.current_token.type == TokenType.BOOLEAN_LITERAL:
             value = self.consume(TokenType.BOOLEAN_LITERAL)
-            return BooleanLiteralNode(value)
+            line, position = self.line_and_position_of_consumed_token()
+            return BooleanLiteralNode(value, line=line, position=position)
 
         elif self.current_token.type == TokenType.NULL_LITERAL:
             _ = self.consume(TokenType.NULL_LITERAL)
-            return NullLiteralNode()
+            line, position = self.line_and_position_of_consumed_token()
+            return NullLiteralNode(line, position=position)
 
         elif self.current_token.type == TokenType.UNDEFINED_LITERAL:
             _ = self.consume(TokenType.UNDEFINED_LITERAL)
-            return UndefinedLiteralNode()
+            line, position = self.line_and_position_of_consumed_token()
+            return UndefinedLiteralNode(line, position=position)
 
         elif self.current_token.type == TokenType.BYTE_LITERAL:
             value = self.consume(TokenType.BYTE_LITERAL)
-            return ByteLiteralNode(value)
+            line, position = self.line_and_position_of_consumed_token()
+            return ByteLiteralNode(value, line=line, position=position)
 
         elif self.current_token.type == TokenType.BYTE_STRING_LITERAL:
             value = self.consume(TokenType.BYTE_STRING_LITERAL)
-            return ByteStringLiteralNode(value)
+            line, position = self.line_and_position_of_consumed_token()
+            return ByteStringLiteralNode(value, line=line, position=position)
 
         elif self.current_token.type == TokenType.OPENING_PARENTHESIS:
             self.consume(TokenType.OPENING_PARENTHESIS)
@@ -933,8 +976,31 @@ class Parser(object):
             self.error(f"Unexpected token {self.current_token}")
             pass
 
-    def parse_identifier(self, context: ContextFlag, **kwargs) \
-            -> IdentifierNode | UserDefinedTypeNode | TemporaryIdentifierNode:
+    def parse_integer(self) -> IntegerLiteralNode:
+        token_type = self.current_token.type
+        if token_type == TokenType.DECIMAL_INTEGER_LITERAL:
+            base: Literal[10, 16, 8, 2] = 10
+        elif token_type == TokenType.HEXADECIMAL_INTEGER_LITERAL:
+            base: Literal[10, 16, 8, 2] = 16
+        elif token_type == TokenType.OCTAL_INTEGER_LITERAL:
+            base: Literal[10, 16, 8, 2] = 8
+        elif token_type == TokenType.BINARY_INTEGER_LITERAL:
+            base: Literal[10, 16, 8, 2] = 2
+        else:
+            self.error(f"Unexpected token {token_type}")
+
+        value = self.consume(token_type)
+        line, position = self.line_and_position_of_consumed_token()
+        return IntegerLiteralNode(value=value, base=base, line=line, position=position)
+
+    def parse_identifier(
+        self,
+        context: ContextFlag,
+        pure_identifier: bool = False,
+        is_type: bool = False,
+        possibly_type: bool = False,
+        **_
+    ) -> IdentifierNode | UserDefinedTypeNode | TemporaryIdentifierNode:
         """
         Parse an identifier
         It can be a label to some variable, function or even class
@@ -942,61 +1008,77 @@ class Parser(object):
         The next token can be the parenthesis or square bracket expression
 
         :param context:
-        :param kwargs: consumes 'is_type' and 'possibly_type'
+        :param pure_identifier: (optional) whether square brackets or
+        :param is_type:
+        :param possibly_type:
         :return:
         """
         identifier = self.consume(TokenType.IDENTIFIER)
-        if kwargs.get('is_type'):
-            kwargs.pop('is_type', None)
-            previous_result = UserDefinedTypeNode(identifier)
-        elif kwargs.get('possibly_type'):
-            kwargs.pop('possibly_type', None)
-            previous_result = TemporaryIdentifierNode(identifier)
+        line, position = self.line_and_position_of_consumed_token()
+        if is_type:
+            previous_result = UserDefinedTypeNode(identifier, line, position)
+        elif possibly_type:
+            previous_result = TemporaryIdentifierNode(identifier, line, position)
         else:
-            previous_result = IdentifierNode(identifier)
-        return self._parse_indexation_or_function_calls_if_exist(previous_result, context)
+            previous_result = IdentifierNode(identifier, line, position)
 
-    def _parse_indexation_or_function_calls_if_exist(self, node, context: ContextFlag):
+        return self._parse_indexation_or_function_calls_if_exist(previous_result, context, pure_identifier)
+
+    def _parse_indexation_or_function_calls_if_exist(self, node, context: ContextFlag, pure_identifier: bool = False):
         token = self.current_token
         if token.type == TokenType.OPENING_SQUARE_BRACKET:
-            return self._parse_indexation_call(node, context)
+            if pure_identifier:
+                self.error(f"Unexpected token: {self.current_token.value}")
+            result = self._parse_indexation_call(node, context)
+            return result
         elif token.type == TokenType.OPENING_PARENTHESIS:
-            return self._parse_function_call(node, context)
+            if pure_identifier:
+                self.error(f"Unexpected token: {self.current_token.value}")
+            result = self._parse_function_call(node, context)
+            return result
         else:
             return node
 
     def _parse_function_call(self, identifier, context: ContextFlag):
+        line, position = self.line_and_position_of_consumed_token()
         arguments = self.__parse_parentheses_content(context)
         # TODO: constructors
         # if isinstance(identifier, UserDefinedTypeNode):
         #     self.error(f"Unexpected token {self.current_token}")
-        result = FunctionCallNode(identifier, arguments)
+
+        # TemporaryIdentifierNode can be met only as beginning of expression
+        # and,
+        if isinstance(identifier, TemporaryIdentifierNode):
+            identifier = IdentifierNode.from_temporary(identifier)
+        result = FunctionCallNode(identifier, arguments, line, position)
         return self._parse_indexation_or_function_calls_if_exist(result, context)
 
     def _parse_indexation_call(self, identifier, context: ContextFlag):
-        # TODO: context
-        arguments = self.__parse_square_bracket_content(allow_keymap_or_slice=True, context=context)
+        line, position = self.line_and_position_of_consumed_token()
+        arguments = self.__parse_square_bracket_content(allow_keymaps=True, context=context)
         if isinstance(identifier, UserDefinedTypeNode):
-            result = CompoundTypeNode(identifier, arguments)
+            result = CompoundTypeNode(identifier, arguments, line, position)
         elif isinstance(identifier, TemporaryIdentifierNode):
             if self.current_token.type == TokenType.IDENTIFIER:
                 identifier = UserDefinedTypeNode.from_temporary(identifier)
-                result = CompoundTypeNode(identifier, arguments)
+                result = CompoundTypeNode(identifier, arguments, line, position)
 
-            # TODO: parsing nested generics
+            # NOTE: nested generics may be parsed during type checking
+            # from here it's impossible to
             else:
-                result = IndexNode(identifier, arguments)
+                identifier = IdentifierNode.from_temporary(identifier)
+                result = IndexNode(identifier, arguments, line, position)
         else:
-            result = IndexNode(identifier, arguments)
+            result = IndexNode(identifier, arguments, line, position)
         return self._parse_indexation_or_function_calls_if_exist(result, context)
 
-    def __parse_square_bracket_content(self, allow_keymap_or_slice: bool, context: ContextFlag) -> list[ASTNode]:
-        # TODO: context
+    def __parse_square_bracket_content(self, allow_keymaps: bool, context: ContextFlag) -> list[ASTNode]:
+
         self.consume(TokenType.OPENING_SQUARE_BRACKET)
         arguments = []
 
         while self.current_token.type != TokenType.CLOSING_SQUARE_BRACKET:
-            if allow_keymap_or_slice:
+            if allow_keymaps:
                 argument = self.parse_arithmetic_expression_with_keymaps(context)
             else:
                 argument = self.parse_arithmetic_expression(context)
@@ -1010,7 +1092,6 @@ class Parser(object):
         return arguments
 
     def __parse_parentheses_content(self, context: ContextFlag) -> list[ASTNode]:
-        # TODO: context
         self.consume(TokenType.OPENING_PARENTHESIS)
         arguments = []
 
@@ -1025,31 +1106,36 @@ class Parser(object):
         self.consume(TokenType.CLOSING_PARENTHESIS)
         return arguments
 
-    def parse_square_bracket_literal_expression(self, context: ContextFlag) -> ListLiteralNode:
-        # TODO: context
-        arguments = self.__parse_square_bracket_content(allow_keymap_or_slice=True, context=context)
-        return ListLiteralNode(arguments)
+    def parse_square_bracket_literal_expression(
+        self,
+        context: ContextFlag
+    ) -> ListLiteralNode | KeymapLiteralNode | EmptyLiteralNode:
+        arguments = self.__parse_square_bracket_content(allow_keymaps=True, context=context)
+        line, position = self.line_and_position_of_consumed_token()
+
+        keymap_literals_count = sum(map(lambda x: isinstance(x, KeymapOperatorNode), arguments))
+        if keymap_literals_count == 0:
+            if arguments:
+                return ListLiteralNode(arguments, line, position)
+            else:
+                return EmptyLiteralNode(line, position)
+        elif keymap_literals_count == len(arguments):
+            return KeymapLiteralNode(arguments, line, position)
+        else:
+            self.error(f"List/keymap literal cannot have both keymap and non-keymap expressions")
 
     def parse_arithmetic_expression_with_keymaps(self, context: ContextFlag):
-        # TODO: context
-        # right-to-left associativity
+        # absent associativity
         left = self.parse_arithmetic_expression(context)
 
-        right_expressions = [left]
-        while self.current_token.value == Operator.KEYMAP_LITERAL:
+        if self.current_token.value == Operator.KEYMAP_LITERAL:
             self.consume(TokenType.OPERATOR)
+            line, position = self.line_and_position_of_consumed_token()
             right = self.parse_arithmetic_expression(context)
-            right_expressions.append(right)
-
-        if len(right_expressions) == 1:
-            return left
-
-        result = BinaryOperatorNode(
-            left=right_expressions[-2], operator=Operator.KEYMAP_LITERAL, right=right_expressions[-1]
-        )
-        for _left in reversed(right_expressions[:-2]):
-            result = BinaryOperatorNode(
-                left=_left, operator=Operator.KEYMAP_LITERAL, right=result
+            return KeymapOperatorNode(
+                left=left, operator=Operator.KEYMAP_LITERAL, right=right,
+                line=line, position=position
             )
 
-        return result
+        else:
+            return left

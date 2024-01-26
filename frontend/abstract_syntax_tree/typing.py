@@ -1,4 +1,4 @@
-from .abstract_syntax_tree import TemporaryIdentifierNode
+from .identifiers import TemporaryIdentifierNode
 from .ast_node import ASTNode
 from enum import IntFlag
 
@@ -10,18 +10,19 @@ class TypeModifierFlag(IntFlag):
 
 
 class TypeNode(ASTNode):
-    def __init__(self, type_name):
+    def __init__(self, type_name: str | ASTNode, line: int, position: int):
+        super().__init__(line, position)
         self.type_name = type_name
         self._modifiers = 0
 
-    def add_flag(self, flag):
+    def add_flag(self, flag: TypeModifierFlag):
         self._modifiers |= flag
 
-    def remove_flag(self, flag):
+    def remove_flag(self, flag: TypeModifierFlag):
         self._modifiers &= ~flag
 
     @property
-    def modifiers(self):
+    def modifiers(self) -> str:
         result = []
         if self._modifiers & TypeModifierFlag.CONSTANT:
             result.append("const")
@@ -31,11 +32,24 @@ class TypeNode(ASTNode):
             result.append("nullable")
         return " ".join(result)
 
+    @property
+    def is_constant(self):
+        return self._modifiers & TypeModifierFlag.CONSTANT
+
+    @property
+    def is_reference(self):
+        return self._modifiers & TypeModifierFlag.REFERENCE
+
+    @property
+    def is_nullable(self):
+        return self._modifiers & TypeModifierFlag.NULLABLE
+
     def __tree_dict__(self):
         return {
             "type_name": self.type_name,
             "modifiers": self.modifiers
         }
+
 
 class SimpleTypeNode(TypeNode):
     def __print_tree__(self):
@@ -45,7 +59,11 @@ class SimpleTypeNode(TypeNode):
 class UserDefinedTypeNode(TypeNode):
     @staticmethod
     def from_temporary(temporary_identifier: "TemporaryIdentifierNode") -> "UserDefinedTypeNode":
-        result = UserDefinedTypeNode(type_name=temporary_identifier.name)
+        result = UserDefinedTypeNode(
+            type_name=temporary_identifier.name,
+            line=temporary_identifier.line,
+            position=temporary_identifier.position
+        )
         result._modifiers = temporary_identifier.modifiers
         return result
 
@@ -54,8 +72,8 @@ class UserDefinedTypeNode(TypeNode):
 
 
 class CompoundTypeNode(TypeNode):
-    def __init__(self, type_name, args):
-        super().__init__(type_name)
+    def __init__(self, type_name: ASTNode | str, args: list[ASTNode], line: int, position: int):
+        super().__init__(type_name, line, position)
         self.args = args
 
     def __tree_dict__(self):

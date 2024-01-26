@@ -1,5 +1,6 @@
 import re
 import logging
+
 from exceptions import UnknownTokenError
 from tokens import TokenType, Token
 from typing import Sequence, Iterator, Self

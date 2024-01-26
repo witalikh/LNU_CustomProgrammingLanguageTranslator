@@ -3,6 +3,10 @@ from typing import Sequence
 
 
 class ASTNode(ABC):
+    def __init__(self, line, position):
+        self.line = line
+        self.position = position
+
     def __repr__(self):
         return _TreePrinter.print_tree(self)
 

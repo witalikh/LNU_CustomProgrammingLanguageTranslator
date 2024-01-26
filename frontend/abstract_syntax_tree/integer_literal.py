@@ -1,7 +1,7 @@
 from enum import IntEnum
 from typing import Literal
 
-from .abstract_syntax_tree import LiteralNode
+from .literals import LiteralNode
 
 
 # NOTE: it's here due to possible circular import
@@ -13,7 +13,8 @@ class IntegerSizes(IntEnum):
 
 
 class IntegerLiteralNode(LiteralNode):
-    def __init__(self, value: str, base: Literal[10, 16, 8, 2]):
+    def __init__(self, value: str, base: Literal[10, 16, 8, 2], line: int, position: int):
+        super().__init__(line, position)
         self._value = int(value, base)
         self._size = None
         self.__init_size_()
@@ -62,4 +63,3 @@ class IntegerLiteralNode(LiteralNode):
 
     def fits(self, size: IntegerSizes) -> bool:
         return self._size <= size
-
