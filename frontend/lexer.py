@@ -67,7 +67,6 @@ class TokenScannerIterator:
                 self._next_relative_position += whitespace_match.end() - self.position
             self.position = whitespace_match.end()
 
-        # TODO: better syntax error info
         match = self.lexer.regex.match(self.input_string, self.position)
         if match is None:
             self.error()

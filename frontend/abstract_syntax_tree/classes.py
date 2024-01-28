@@ -9,7 +9,7 @@ class ClassDefinitionNode(ASTNode):
         self,
         class_name: str,
         generic_parameters: list["GenericParameterNode"],
-        inheritance_list: list[UserDefinedTypeNode | GenericClassTypeNode] | None,
+        inherited_class: UserDefinedTypeNode | GenericClassTypeNode | None,
         fields_definitions: list,
         methods_definitions: list,
         static_fields_definitions: list,
@@ -20,7 +20,7 @@ class ClassDefinitionNode(ASTNode):
         super().__init__(line, position)
         self.class_name = class_name
         self.generic_parameters = generic_parameters
-        self.inheritance_list = inheritance_list
+        self.inherited_class = inherited_class
         self.fields_definitions = fields_definitions
         self.methods_definitions = methods_definitions
         self.static_fields_definitions = static_fields_definitions
@@ -44,7 +44,6 @@ class ClassMethodDeclarationNode(ASTNode):
         static: bool,
         virtual: bool,
         overload: bool,
-        # abstract: bool,
         line: int,
         position: int
     ):
@@ -58,7 +57,6 @@ class ClassMethodDeclarationNode(ASTNode):
         self.static = static
         self.virtual = virtual
         self.overload = overload
-        # self.abstract = abstract  # TODO: in the future, for now it's already overcomplicated
 
 
 class ClassFieldDeclarationNode(ASTNode):

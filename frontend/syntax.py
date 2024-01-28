@@ -119,8 +119,6 @@ class Operator(CustomEnum):
 
     # literals
     KEYMAP_LITERAL = ":"
-    DEDUCTION = "?"
-    TERMINATION = "!"
 
     # unary
     INTERPOLATION = "$"
@@ -136,6 +134,11 @@ class Operator(CustomEnum):
     DELETE_INSTANCE = "delete"
 
     MEMBERSHIP_OPERATOR = "in"
+
+
+class Operands(CustomEnum):
+    DEDUCTION = "?"
+    TERMINATION = "!"
 
 
 class Assignment(CustomEnum):
@@ -160,6 +163,7 @@ class Assignment(CustomEnum):
 
 ASSIGNMENTS_REGEX = join_unbounded_keywords_as_regex(Assignment.values())
 OPERATORS_REGEX = join_partially_bounded_keywords_as_regex(Operator.values())
+OPERANDS_REGEX = join_partially_bounded_keywords_as_regex(Operands.values())
 
 # LITERALS
 # INTEGERS & FLOATS
@@ -234,6 +238,7 @@ RULES = (
 
         (TokenType.GENERIC_ASSIGNMENT, ASSIGNMENTS_REGEX),
         (TokenType.OPERATOR, OPERATORS_REGEX),
+        (TokenType.OPERAND, OPERANDS_REGEX),
 
         (TokenType.IDENTIFIER, IDENTIFIER_REGEX),
 
