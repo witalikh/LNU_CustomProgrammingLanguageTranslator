@@ -5,17 +5,7 @@ class IdentifierNode(ASTNode):
     def __init__(self, name: str, line: int, position: int):
         super().__init__(line, position)
         self.name = name
-        self.type = None
-
-    @staticmethod
-    def from_temporary(temporary_identifier: "TemporaryIdentifierNode") -> "IdentifierNode":
-        result = IdentifierNode(
-            name=temporary_identifier.name,
-            line=temporary_identifier.line,
-            position=temporary_identifier.position,
-        )
-        result.type = temporary_identifier.type
-        return result
+        # self.type = None
 
     def __print_tree__(self):
         return f"Identifier({self.name})"

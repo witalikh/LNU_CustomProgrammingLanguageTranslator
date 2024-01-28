@@ -35,3 +35,19 @@ class ParsingException(Exception):
 
     def __str__(self) -> str:
         return f"Occurred parsing error at line {self.line}, position {self.position}: \n{self.message}"
+
+
+class SemanticException(Exception):
+    """
+    This exception is for use to be thrown in the type-checking or desugaring process
+    when semantically wrong tokens (mainly typization) are encountered in the AST tree.
+    It holds the line number, position and the reason token is invalid here.
+    Note: This exception is collected into a list, and then raised
+    """
+    def __init__(self, message: str, line: int, position: int):
+        self.message = message
+        self.line = line
+        self.position = position
+
+    def __str__(self) -> str:
+        return f"Occurred parsing error at line {self.line}, position {self.position}: \n{self.message}"

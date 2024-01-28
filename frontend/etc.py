@@ -40,6 +40,26 @@ def join_bounded_keywords_as_regex(lst: list | tuple) -> str:
     return "|".join(map(lambda x: bounded(x), lst))
 
 
+def join_unbounded_keywords_as_regex(lst: list | tuple) -> str:
+    """
+    Join a list of words into a regular expression.
+    All words are escaped, but not bounded.
+    :param lst: list or tuple of keywords
+    :return: regular expression for the keywords
+    """
+    return "|".join(map(lambda x: re.escape(x), lst))
+
+
+def join_partially_bounded_keywords_as_regex(lst: list | tuple) -> str:
+    """
+    Join a list of words into a regular expression.
+    All words are escaped, but not bounded.
+    :param lst: list or tuple of keywords
+    :return: regular expression for the keywords
+    """
+    return "|".join(map(lambda x: bounded(x) if x.isalpha() else re.escape(x), lst))
+
+
 def bounded(s: str) -> str:
     """
     Escape and bound (meaning that regex should consider the word as whole) keyword

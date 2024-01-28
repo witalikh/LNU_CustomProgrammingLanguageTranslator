@@ -1,6 +1,10 @@
-import re
-
-from etc import CustomEnum, join_bounded_keywords_as_regex, bounded
+from etc import (
+    CustomEnum,
+    join_bounded_keywords_as_regex,
+    bounded,
+    join_partially_bounded_keywords_as_regex,
+    join_unbounded_keywords_as_regex
+)
 from tokens import TokenType
 
 
@@ -32,6 +36,17 @@ class TypeModifier(CustomEnum):
     REFERENCE = "reference"
 
 
+class ClassModifierKeyword(CustomEnum):
+    PUBLIC = "public"
+    PRIVATE = "private"
+    PROTECTED = "protected"
+
+    VIRTUAL = "virtual"
+    OVERRIDE = "override"
+
+    STATIC = "static"
+
+
 class Keyword(CustomEnum):
     IF = "if"
     ELSE = "else"
@@ -45,7 +60,14 @@ class Keyword(CustomEnum):
     CATCH = "catch"
     FINALLY = "finally"
     STRUCT = "struct"
+
+    # OOP
     CLASS = "class"
+    THIS = "this"
+    OPERATOR = "operator"
+    TYPE = "type"  # considered as keyword for generic params
+
+    FROM = "from"
 
 
 class Operator(CustomEnum):
@@ -136,8 +158,8 @@ class Assignment(CustomEnum):
     COMPOUND_BITWISE_LSHIFT = "<<="
 
 
-ASSIGNMENTS_REGEX = "|".join(map(re.escape, Assignment.values()))
-OPERATORS_REGEX = "|".join(map(re.escape, Operator.values()))
+ASSIGNMENTS_REGEX = join_unbounded_keywords_as_regex(Assignment.values())
+OPERATORS_REGEX = join_partially_bounded_keywords_as_regex(Operator.values())
 
 # LITERALS
 # INTEGERS & FLOATS
@@ -165,6 +187,7 @@ TYPES_MODIFIER_REGEX = join_bounded_keywords_as_regex(TypeModifier.values())
 
 # KEYWORDS, IDENTIFIERS AND COMMENTS
 KEYWORDS_REGEX = join_bounded_keywords_as_regex(Keyword.values())
+CLASS_KEYWORDS_REGEX = join_bounded_keywords_as_regex(ClassModifierKeyword.values())
 IDENTIFIER_REGEX = r"[a-zA-Z_][a-zA-Z0-9_]*"
 COMMENT_REGEX = r"#.*$"
 
@@ -190,6 +213,8 @@ RULES = (
         (TokenType.COMPOUND_TYPE, COMPOUND_TYPES_REGEX),
         (TokenType.TYPE_MODIFIER, TYPES_MODIFIER_REGEX),
         (TokenType.KEYWORD, KEYWORDS_REGEX),
+
+        (TokenType.CLASS_KEYWORD, CLASS_KEYWORDS_REGEX),
 
         (TokenType.IMAGINARY_FLOAT_LITERAL, IMAGINARY_FLOAT_REGEX),
         (TokenType.FLOAT_LITERAL, FLOAT_REGEX),

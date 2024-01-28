@@ -1,4 +1,4 @@
-from .identifiers import TemporaryIdentifierNode
+from .identifiers import IdentifierNode
 from .ast_node import ASTNode
 from enum import IntFlag
 
@@ -57,22 +57,12 @@ class SimpleTypeNode(TypeNode):
 
 
 class UserDefinedTypeNode(TypeNode):
-    @staticmethod
-    def from_temporary(temporary_identifier: "TemporaryIdentifierNode") -> "UserDefinedTypeNode":
-        result = UserDefinedTypeNode(
-            type_name=temporary_identifier.name,
-            line=temporary_identifier.line,
-            position=temporary_identifier.position
-        )
-        result._modifiers = temporary_identifier.modifiers
-        return result
-
     def __print_tree__(self):
         return f"Class / struct identifier({self.type_name})"
 
 
 class CompoundTypeNode(TypeNode):
-    def __init__(self, type_name: ASTNode | str, args: list[ASTNode], line: int, position: int):
+    def __init__(self, type_name: str, args: list[ASTNode], line: int, position: int):
         super().__init__(type_name, line, position)
         self.args = args
 
@@ -80,5 +70,18 @@ class CompoundTypeNode(TypeNode):
         return {
             "type_name": self.type_name,
             "args": self.args,
+            "modifiers": self.modifiers,
+        }
+
+
+class GenericClassTypeNode(TypeNode):
+    def __init__(self, type_name: UserDefinedTypeNode, generic_arguments: list[TypeNode], line: int, position: int):
+        super().__init__(type_name, line, position)
+        self.generic_arguments = generic_arguments
+
+    def __tree_dict__(self):
+        return {
+            "type_name": self.type_name,
+            "generic_arguments": self.generic_arguments,
             "modifiers": self.modifiers,
         }

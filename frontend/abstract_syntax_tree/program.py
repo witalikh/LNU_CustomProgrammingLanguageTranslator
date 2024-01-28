@@ -1,11 +1,12 @@
 from .ast_node import ASTNode
-from .function import FunctionDeclarationNode
+from .classes import ClassDefinitionNode
+from .functions import FunctionDeclarationNode
 
 
 class ProgramNode(ASTNode):
     def __init__(
         self,
-        class_definitions,
+        class_definitions: list[ClassDefinitionNode],
         function_definitions: list[FunctionDeclarationNode],
         statements: list[ASTNode]
     ):

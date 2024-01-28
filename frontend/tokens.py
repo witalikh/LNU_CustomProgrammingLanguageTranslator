@@ -59,6 +59,7 @@ class TokenType:
     COMMENT = "COMMENT"
 
     KEYWORD = "KEYWORDS"
+    CLASS_KEYWORD = "CLASS_KEYWORDS"
 
 
 class Token:

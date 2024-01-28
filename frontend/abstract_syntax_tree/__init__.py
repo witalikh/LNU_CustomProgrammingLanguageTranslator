@@ -10,7 +10,10 @@ from .binary_node import (
     KeymapOperatorNode,
 )
 from .classes import (
-    ClassDefinitionNode
+    ClassDefinitionNode,
+    GenericParameterNode,
+    ClassFieldDeclarationNode,
+    ClassMethodDeclarationNode,
 )
 from .construct_if import (
     IfElseNode
@@ -18,7 +21,7 @@ from .construct_if import (
 from .construct_while import (
     WhileNode
 )
-from .function import (
+from .functions import (
     FunctionParameter,
     FunctionDeclarationNode,
     FunctionCallNode
@@ -30,8 +33,7 @@ from .keywords import (
     ReturnNode
 )
 from .identifiers import (
-    IdentifierNode,
-    TemporaryIdentifierNode
+    IdentifierNode
 )
 from .integer_literal import (
     IntegerLiteralNode,
@@ -60,9 +62,11 @@ from .scope import (
     ScopeNode
 )
 from .typing import (
+    TypeModifierFlag,
     UserDefinedTypeNode,
     SimpleTypeNode,
     CompoundTypeNode,
+    GenericClassTypeNode,
     TypeNode
 )
 from .unary_node import (
