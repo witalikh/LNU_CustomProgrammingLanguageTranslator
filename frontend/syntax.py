@@ -20,6 +20,7 @@ class SimpleType(CustomEnum):
 
     COMPLEX = "complex"
     STRING = "string"
+    BYTESTRING = "bytestring"
     STREAM = "stream"
 
 

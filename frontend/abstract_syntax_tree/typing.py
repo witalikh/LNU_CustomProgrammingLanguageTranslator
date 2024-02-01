@@ -1,6 +1,15 @@
+from typing import List, Union
+
 from .identifiers import IdentifierNode
 from .ast_node import ASTNode
 from enum import IntFlag
+
+
+class TypeCategory(IntFlag):
+    PRIMITIVE = 1
+    COLLECTION = 2
+    CLASS = 3
+    GENERIC_CLASS = 4
 
 
 class TypeModifierFlag(IntFlag):
@@ -9,11 +18,32 @@ class TypeModifierFlag(IntFlag):
     CONSTANT = 4
 
 
+class TypeLiteral(ASTNode):
+    def __init__(self, name: str, line: int, location: int):
+        super().__init__(line, location)
+        self.name = name
+
+    def __print_tree__(self):
+        return f"TypeLiteral({self.name})"
+
+
 class TypeNode(ASTNode):
-    def __init__(self, type_name: str | ASTNode, line: int, position: int):
+    def __init__(
+        self,
+        category: TypeCategory,
+        type_name: TypeLiteral | IdentifierNode,
+        args: List[Union["TypeNode", ASTNode]] | None,
+        line: int,
+        position: int,
+    ):
         super().__init__(line, position)
+        self.category = category
         self.type_name = type_name
+        self.arguments = args
         self._modifiers = 0
+
+    def __eq__(self, other):
+        return isinstance(other, TypeNode) and self.type_name == other.type_name and self.modifiers == other.modifiers
 
     def add_flag(self, flag: TypeModifierFlag):
         self._modifiers |= flag
@@ -45,43 +75,14 @@ class TypeNode(ASTNode):
         return self._modifiers & TypeModifierFlag.NULLABLE
 
     def __tree_dict__(self):
-        return {
-            "type_name": self.type_name,
-            "modifiers": self.modifiers
-        }
-
-
-class SimpleTypeNode(TypeNode):
-    def __print_tree__(self):
-        return f"SimpleType({self.type_name})"
-
-
-class UserDefinedTypeNode(TypeNode):
-    def __print_tree__(self):
-        return f"Class / struct identifier({self.type_name})"
-
-
-class CompoundTypeNode(TypeNode):
-    def __init__(self, type_name: str, args: list[ASTNode], line: int, position: int):
-        super().__init__(type_name, line, position)
-        self.args = args
-
-    def __tree_dict__(self):
-        return {
-            "type_name": self.type_name,
-            "args": self.args,
-            "modifiers": self.modifiers,
-        }
-
-
-class GenericClassTypeNode(TypeNode):
-    def __init__(self, type_name: UserDefinedTypeNode, generic_arguments: list[TypeNode], line: int, position: int):
-        super().__init__(type_name, line, position)
-        self.generic_arguments = generic_arguments
-
-    def __tree_dict__(self):
-        return {
-            "type_name": self.type_name,
-            "generic_arguments": self.generic_arguments,
-            "modifiers": self.modifiers,
-        }
+        if self.category not in (TypeCategory.COLLECTION, TypeCategory.GENERIC_CLASS):
+            return {
+                "type_name": self.type_name,
+                "modifiers": self.modifiers
+            }
+        else:
+            return {
+                "type_name": self.type_name,
+                "arguments": self.arguments,
+                "modifiers": self.modifiers,
+            }

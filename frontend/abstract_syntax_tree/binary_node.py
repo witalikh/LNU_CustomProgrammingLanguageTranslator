@@ -1,5 +1,10 @@
 from .ast_node import ASTNode
 from .literals import CalculationNode
+from .functions import FunctionCallNode
+from .identifiers import IdentifierNode
+
+
+from typing import Union
 
 
 class BinaryOperatorNode(CalculationNode):
@@ -35,7 +40,13 @@ class KeymapOperatorNode(BinaryOperatorNode):
 
 
 class IndexNode(CalculationNode):
-    def __init__(self, variable: ASTNode, arguments: list[ASTNode], line: int, position: int):
+    def __init__(
+        self,
+        variable: Union[IdentifierNode, "IndexNode", FunctionCallNode],
+        arguments: list[ASTNode],
+        line: int,
+        position: int
+    ):
         super().__init__(line, position)
         self.variable = variable
         self.arguments = arguments

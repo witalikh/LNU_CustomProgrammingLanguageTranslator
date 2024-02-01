@@ -1,7 +1,16 @@
 from .ast_node import ASTNode
 from .functions import FunctionParameter
 from .scope import ScopeNode
-from .typing import UserDefinedTypeNode, GenericClassTypeNode, TypeNode
+from .typing import TypeNode
+
+from itertools import chain
+from typing import Iterator
+
+
+class AccessType:
+    PUBLIC = "public"
+    PRIVATE = "private"
+    PROTECTED = "protected"
 
 
 class ClassDefinitionNode(ASTNode):
@@ -9,11 +18,11 @@ class ClassDefinitionNode(ASTNode):
         self,
         class_name: str,
         generic_parameters: list["GenericParameterNode"],
-        inherited_class: UserDefinedTypeNode | GenericClassTypeNode | None,
-        fields_definitions: list,
-        methods_definitions: list,
-        static_fields_definitions: list,
-        static_methods_definitions: list,
+        inherited_class: TypeNode | None,
+        fields_definitions: list["ClassFieldDeclarationNode"],
+        methods_definitions: list["ClassMethodDeclarationNode"],
+        static_fields_definitions: list["ClassFieldDeclarationNode"],
+        static_methods_definitions: list["ClassMethodDeclarationNode"],
         line: int,
         position: int
     ):
@@ -25,6 +34,10 @@ class ClassDefinitionNode(ASTNode):
         self.methods_definitions = methods_definitions
         self.static_fields_definitions = static_fields_definitions
         self.static_methods_definitions = static_methods_definitions
+
+    @property
+    def all_fields_definitions(self) -> Iterator["ClassFieldDeclarationNode"]:
+        return chain(self.fields_definitions, self.static_fields_definitions)
 
 
 class GenericParameterNode(ASTNode):

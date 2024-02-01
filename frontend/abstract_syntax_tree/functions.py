@@ -37,7 +37,7 @@ class FunctionParameter(ASTNode):
 
 
 class FunctionCallNode(CalculationNode):
-    def __init__(self, identifier, arguments, line: int, position: int):
+    def __init__(self, identifier, arguments: list[ASTNode], line: int, position: int):
         super().__init__(line, position)
         self.identifier = identifier
         self.arguments = arguments

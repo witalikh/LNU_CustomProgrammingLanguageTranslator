@@ -11,3 +11,7 @@ class UnaryOperatorNode(CalculationNode):
 
 class AllocationOperatorNode(UnaryOperatorNode):
     pass
+
+
+class ReferenceOperatorNode(UnaryOperatorNode):
+    pass

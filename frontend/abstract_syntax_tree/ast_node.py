@@ -10,6 +10,10 @@ class ASTNode(ABC):
     def __repr__(self):
         return _TreePrinter.print_tree(self)
 
+    @property
+    def location(self) -> tuple[int, int]:
+        return self.line, self.position
+
 
 class _TreePrinter:
     """

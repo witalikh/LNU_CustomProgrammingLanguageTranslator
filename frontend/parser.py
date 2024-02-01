@@ -294,7 +294,7 @@ class Parser(object):
                 self.error(f"Duplicated token {value} in field/method definition")
             class_keywords.add(value)
 
-            if value in (ClassModifierKeyword.PUBLIC, ClassModifierKeyword.PRIVATE, ClassModifierKeyword.PROTECTED):
+            if value in (AccessType.PUBLIC, AccessType.PRIVATE, AccessType.PROTECTED):
                 access_modifier = (
                     value if access_modifier is None else
                     self.error(f"Conflicting or repeating access type token {value} in field/method definition")
@@ -616,7 +616,7 @@ class Parser(object):
         if ContextFlag.strict_match(context, ContextFlag.CLASS):
             return ClassMethodDeclarationNode(
                 return_type, function_name, parameters, function_body,
-                access_type=ClassModifierKeyword.PUBLIC,
+                access_type=AccessType.PUBLIC,
                 static=False,
                 virtual=False,
                 overload=False,
@@ -695,7 +695,7 @@ class Parser(object):
         if ContextFlag.strict_match(context, ContextFlag.CLASS):
             result = ClassFieldDeclarationNode(
                 type_node, identifier, operator, expression_node,
-                ClassModifierKeyword.PROTECTED, False,
+                AccessType.PROTECTED, False,
                 line, position
             )
         else:
@@ -737,10 +737,19 @@ class Parser(object):
         if self.is_consumable(TokenType.SIMPLE_TYPE):
             type_name = self.consume(TokenType.SIMPLE_TYPE)
             line, position = self.line_and_position_of_consumed_token()
-            return SimpleTypeNode(type_name, line, position)
+            type_literal_node = TypeLiteral(type_name, line, position)
+            return TypeNode(TypeCategory.PRIMITIVE, type_literal_node, None, line, position)
 
         elif self.is_consumable(TokenType.COMPOUND_TYPE):
-            return self.parse_compound_types(context=context)
+            compound_type = self.consume(TokenType.COMPOUND_TYPE)
+            line, position = self.line_and_position_of_consumed_token()
+
+            parameters = []
+            if self.is_consumable(TokenType.OPENING_SQUARE_BRACKET):
+                parameters = self.__parse_square_bracket_content(allow_keymaps=False, context=context)
+
+            type_literal_node = TypeLiteral(compound_type, line, position)
+            return TypeNode(TypeCategory.COLLECTION, type_literal_node, parameters, line, position)
 
         elif self.is_consumable(TokenType.IDENTIFIER):
             identifier = self.parse_identifier(context=context)
@@ -748,16 +757,6 @@ class Parser(object):
 
         else:
             self.error("Invalid type declaration")
-
-    def parse_compound_types(self, context: ContextFlag) -> CompoundTypeNode:
-        compound_type = self.consume(TokenType.COMPOUND_TYPE)
-        line, position = self.line_and_position_of_consumed_token()
-
-        parameters = []
-        if self.is_consumable(TokenType.OPENING_SQUARE_BRACKET):
-            parameters = self.__parse_square_bracket_content(allow_keymaps=False, context=context)
-
-        return CompoundTypeNode(compound_type, parameters, line, position)
 
     def parse_arithmetic_expression(self, context: ContextFlag):
         return self.parse_logical_or_expression(context)
@@ -1445,19 +1444,21 @@ class Parser(object):
     def refine_identifier_as_class_name(
         self,
         node
-    ) -> UserDefinedTypeNode | GenericClassTypeNode | SimpleTypeNode | CompoundTypeNode:
+    ) -> TypeNode:
         if isinstance(node, IdentifierNode):
-            return UserDefinedTypeNode(node.name, node.line, node.position)
+            return TypeNode(TypeCategory.CLASS, node, None, node.line, node.position)
         elif isinstance(node, IndexNode):
             if not isinstance(node.variable, IdentifierNode):
                 self.error(f"Invalid class type declaration: {node.variable.__class__.__name__}")
-            return GenericClassTypeNode(
-                type_name=self.refine_identifier_as_class_name(node.variable),
-                generic_arguments=[self.refine_identifier_as_class_name(x) for x in node.arguments],
+            return TypeNode(
+                category=TypeCategory.GENERIC_CLASS,
+                type_name=node.variable,
+                args=[self.refine_identifier_as_class_name(x) for x in node.arguments],
                 line=node.line,
                 position=node.position
             )
-        elif isinstance(node, (SimpleTypeNode, CompoundTypeNode)):
-            return node
+        elif isinstance(node, TypeNode):
+            if node.category in (TypeCategory.PRIMITIVE, TypeCategory.COLLECTION):
+                return node
         else:
             self.error(f"Invalid class type declaration: {node.__class__.__name__}")

@@ -56,10 +56,6 @@ def scenario_2():
 
 
 def scenario_3():
-    # -3**5 - (2 + 2) * 2 / (3 -4) + 3*5**2
-    # -3 * -5 ** 2 + func(1, 2, 3, "Lol", `\xA0\xF3`, "(]}{}\r", true, false, null, undefined) [111, 0]
-    # (func(a+b*c, b) + 3 << 5 | 4) <= 19 + 5
-
     code_example = (r"""
     function bubble_sort(reference array[float, ?] arr)
 {
@@ -111,6 +107,25 @@ function Main()
 }
 
 Main();
+    """)
+
+    lexer = Lexer(RULES)
+    lexemes_iter = lexer.scan(code_example)
+
+    parser = Parser(lexemes_iter)
+    x = parser.parse()
+    print(x)
+
+
+def scenario_4():
+    code_example = (r"""   
+    const reference my_class[integers[x, const integer]] x = new my_class[integers[x]]("Hello");
+    x[5] := 4;
+    array[integer, 6] x = [1, 2, 3, 4];
+    integer z := 7738;
+    # x(4);
+    
+    x[y[5]];
     """)
 
     lexer = Lexer(RULES)

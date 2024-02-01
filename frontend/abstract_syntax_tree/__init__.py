@@ -10,6 +10,7 @@ from .binary_node import (
     KeymapOperatorNode,
 )
 from .classes import (
+    AccessType,
     ClassDefinitionNode,
     GenericParameterNode,
     ClassFieldDeclarationNode,
@@ -63,10 +64,8 @@ from .scope import (
 )
 from .typing import (
     TypeModifierFlag,
-    UserDefinedTypeNode,
-    SimpleTypeNode,
-    CompoundTypeNode,
-    GenericClassTypeNode,
+    TypeCategory,
+    TypeLiteral,
     TypeNode
 )
 from .unary_node import (
