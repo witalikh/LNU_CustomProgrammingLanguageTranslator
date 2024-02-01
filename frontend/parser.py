@@ -1452,7 +1452,7 @@ class Parser(object):
                 self.error(f"Invalid class type declaration: {node.variable.__class__.__name__}")
             return TypeNode(
                 category=TypeCategory.GENERIC_CLASS,
-                type_name=node.variable,
+                type_node=node.variable,
                 args=[self.refine_identifier_as_class_name(x) for x in node.arguments],
                 line=node.line,
                 position=node.position

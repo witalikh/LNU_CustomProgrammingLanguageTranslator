@@ -23,6 +23,14 @@ class TypeLiteral(ASTNode):
         super().__init__(line, location)
         self.name = name
 
+    def __eq__(self, other: Union['TypeLiteral', str]) -> bool:
+        if isinstance(other, TypeLiteral):
+            return self.name == other.name
+        return self.name == other
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def __print_tree__(self):
         return f"TypeLiteral({self.name})"
 
@@ -31,19 +39,19 @@ class TypeNode(ASTNode):
     def __init__(
         self,
         category: TypeCategory,
-        type_name: TypeLiteral | IdentifierNode,
+        type_node: TypeLiteral | IdentifierNode,
         args: List[Union["TypeNode", ASTNode]] | None,
         line: int,
         position: int,
     ):
         super().__init__(line, position)
         self.category = category
-        self.type_name = type_name
+        self.type = type_node
         self.arguments = args
         self._modifiers = 0
 
     def __eq__(self, other):
-        return isinstance(other, TypeNode) and self.type_name == other.type_name and self.modifiers == other.modifiers
+        return isinstance(other, TypeNode) and self.type == other.type and self.modifiers == other.modifiers
 
     def add_flag(self, flag: TypeModifierFlag):
         self._modifiers |= flag
@@ -77,12 +85,12 @@ class TypeNode(ASTNode):
     def __tree_dict__(self):
         if self.category not in (TypeCategory.COLLECTION, TypeCategory.GENERIC_CLASS):
             return {
-                "type_name": self.type_name,
+                "type": self.type,
                 "modifiers": self.modifiers
             }
         else:
             return {
-                "type_name": self.type_name,
+                "type": self.type,
                 "arguments": self.arguments,
                 "modifiers": self.modifiers,
             }
