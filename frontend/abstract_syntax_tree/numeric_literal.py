@@ -8,8 +8,7 @@ from .literals import LiteralNode
 class IntegerSizes(IntEnum):
     BYTE = 0
     INTEGER = 1
-    UNSIGNED = 2
-    LONG = 3
+    LONG = 2
 
 
 class IntegerLiteralNode(LiteralNode):
@@ -20,12 +19,12 @@ class IntegerLiteralNode(LiteralNode):
         self.__init_size_()
 
     def __init_size_(self):
-        if 0 <= self._value <= 255:
+        if -128 <= self._value <= 127:
             self._size = IntegerSizes.BYTE
-        elif -2147483648 <= self._value <= 2147483647:
+        elif -2_147_483_648 <= self._value <= 2_147_483_647:
             self._size = IntegerSizes.INTEGER
-        elif 0 <= self._value <= 4294967295:
-            self._size = IntegerSizes.UNSIGNED
+        # elif 0 <= self._value <= 4294967295:
+        #     self._size = IntegerSizes.UNSIGNED
         else:
             self._size = IntegerSizes.LONG
 
@@ -63,3 +62,15 @@ class IntegerLiteralNode(LiteralNode):
 
     def fits(self, size: IntegerSizes) -> bool:
         return self._size <= size
+
+
+class FloatLiteralNode(LiteralNode):
+    def __init__(self, value: str, line: int, position: int):
+        super().__init__(line, position)
+        self.value = value
+
+
+class ImaginaryFloatLiteralNode(LiteralNode):
+    def __init__(self, value: str, line: int, position: int):
+        super().__init__(line, position)
+        self.value = value

@@ -7,4 +7,12 @@ and have all functions beginning with underscore unless it's used in another mod
 In such way, the inner implementation of separate type-checkers is separated and hidden
 from others.
 """
-pass
+
+# Code conventions:
+# check => returns boolean and some value, possibly error logs
+# match => returns boolean, without error logging
+# validate => returns boolean, with error logging
+# get => gets value or None, with error logging
+#
+# If function is not gonna be imported anywhere,
+# make it private inside a module

@@ -20,6 +20,12 @@ class FunctionDeclarationNode(ASTNode):
         self.parameters = parameters
         self.function_body = function_body
 
+    @property
+    def parameters_signature(self) -> list[TypeNode]:
+        return list(
+            map(lambda p: p.type_node, self.parameters)
+        )
+
 
 class FunctionParameter(ASTNode):
     def __init__(

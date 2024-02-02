@@ -36,9 +36,11 @@ from .keywords import (
 from .identifiers import (
     IdentifierNode
 )
-from .integer_literal import (
+from .numeric_literal import (
     IntegerLiteralNode,
-    IntegerSizes
+    IntegerSizes,
+    FloatLiteralNode,
+    ImaginaryFloatLiteralNode,
 )
 from .literals import (
     CalculationNode,
@@ -47,11 +49,9 @@ from .literals import (
     StringLiteralNode,
     CharLiteralNode,
     NullLiteralNode,
-    FloatLiteralNode,
     UndefinedLiteralNode,
     BooleanLiteralNode,
     ByteStringLiteralNode,
-    ImaginaryFloatLiteralNode,
     ListLiteralNode,
     KeymapLiteralNode,
     EmptyLiteralNode,

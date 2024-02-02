@@ -1,6 +1,27 @@
 from ..abstract_syntax_tree import *
 
 from .shared import error_logger, class_definitions, function_definitions
+from ._typing import match_types
+
+
+def match_signatures(args_signature: list[TypeNode], function_signature: list[TypeNode]) -> bool:
+
+    # TODO: (in future) variadic args
+    # something like that
+    # if None in function_signature:
+    #     index_of_variadic = function_signature.index(None)
+    #     if index_of_variadic != len(function_signature) - 1:
+    #         return
+    #     else:
+    #         variadic = True
+
+    if len(args_signature) != len(function_signature):
+        return False
+
+    for arg, param in zip(args_signature, function_signature):
+        if not match_types(arg, param):
+            return False
+    return True
 
 
 def validate_overloaded_function_definitions() -> bool:
@@ -36,7 +57,8 @@ def validate_overloaded_function_name(
         if function.function_name != function_name:
             continue
 
-        parameters = get_parameters_signature(function.parameters)
+        # TODO: signature check
+        parameters = function.parameters_signature
         if parameters not in overloaded_function_parameters:
             overloaded_function_parameters[parameters] = [function]
         else:

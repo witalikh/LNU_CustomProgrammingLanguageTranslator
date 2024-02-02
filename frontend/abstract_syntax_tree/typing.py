@@ -51,7 +51,12 @@ class TypeNode(ASTNode):
         self._modifiers = 0
 
     def __eq__(self, other):
-        return isinstance(other, TypeNode) and self.type == other.type and self.modifiers == other.modifiers
+        return all((
+            isinstance(other, TypeNode),
+            other.category == self.category,
+            self.type == other.type,
+            self.modifiers == other.modifiers
+        ))
 
     def add_flag(self, flag: TypeModifierFlag):
         self._modifiers |= flag

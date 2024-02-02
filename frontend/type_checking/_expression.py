@@ -4,6 +4,8 @@ from .shared import error_logger, class_definitions, function_definitions
 from ..abstract_syntax_tree.unary_node import ReferenceOperatorNode
 
 
+from ._overloads import match_signatures
+
 # TODO: implement this all
 # TODO: describe modules
 def check_arithmetic_expression(
@@ -79,13 +81,27 @@ def check_function_call(
     if not all_valid:
         return False, None
 
+    # assume validated and the first guess is right
     found_match = False
     matched_function = None
     for potential_function in potential_functions:
-        matched_signature = ... # TODO: ._.
+        matched_signature = match_signatures(args_type, potential_function.parameters_signature)
+        if matched_signature:
+            matched_function = potential_function
+            found_match = True
+            break
+
+    if not found_match:
+        error_logger.add(
+            function_node.location,
+            f"Function with name {function_node} and given signature {str(args_type)} doesn't exist"
+        )
+        return False, None
+    else:
+        return True, matched_function.return_type
 
 
-
+# TODO: finish indexation
 def check_indexation_call(
     identifier: IndexNode,
     environment: dict[str, TypeNode]

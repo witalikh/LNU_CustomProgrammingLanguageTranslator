@@ -13,23 +13,6 @@ class LiteralNode(CalculationNode):
         return formatted_name
 
 
-# class NumericLiteralNode(LiteralNode):
-#     def __init__(self, value):
-#         self.value = value
-
-
-class FloatLiteralNode(LiteralNode):
-    def __init__(self, value: str, line: int, position: int):
-        super().__init__(line, position)
-        self.value = value
-
-
-class ImaginaryFloatLiteralNode(LiteralNode):
-    def __init__(self, value: str, line: int, position: int):
-        super().__init__(line, position)
-        self.value = value
-
-
 class StringLiteralNode(LiteralNode):
     def __init__(self, value: str, line: int, position: int):
         super().__init__(line, position)
