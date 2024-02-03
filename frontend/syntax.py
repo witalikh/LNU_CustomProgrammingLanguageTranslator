@@ -10,15 +10,19 @@ from tokens import TokenType
 
 class SimpleType(CustomEnum):
 
-    BOOLEAN = "boolean"
-    BYTE = "byte"
+    BOOLEAN = "boolean"  # BIT
+    BYTE = "byte"  # 8 bits int
+    SHORT_INTEGER = "short integer"  # 16-bit integer
+    INTEGER = "integer"  # 32-bit integer
+    LONG_INTEGER = "long integer"  # 64-bit integer
+    EXTENDED_INTEGER = "extended integer"
 
-    INTEGER = "integer"
-    LONG_INTEGER = "long integer"
     FLOAT = "float"
-    LONG_FLOAT = "long float"
+    DOUBLE = "double"
 
     COMPLEX = "complex"
+
+    CHAR = "char"
     STRING = "string"
     BYTESTRING = "bytestring"
     STREAM = "stream"

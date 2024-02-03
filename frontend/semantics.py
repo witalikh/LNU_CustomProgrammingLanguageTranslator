@@ -8,12 +8,17 @@ class TypeEnum(StrEnum):
     BOOLEAN = "boolean"
 
     BYTE = "byte"
+    SHORT_INTEGER = "short integer"
     INTEGER = "integer"
     LONG_INTEGER = "long integer"
+    EXTENDED_INTEGER = "extended integer"
+
     FLOAT = "float"
-    LONG_FLOAT = "long float"
+    DOUBLE = "double"
 
     COMPLEX = "complex"
+
+    CHAR = "char"
     STRING = "string"
 
     BYTESTRING = "bytestring"

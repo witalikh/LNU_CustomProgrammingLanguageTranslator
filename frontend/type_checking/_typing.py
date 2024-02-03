@@ -4,28 +4,195 @@ from ..semantics import TypeEnum
 from .shared import error_logger, class_definitions, function_definitions
 
 
-def get_type_of_literal(
-    literal: LiteralNode
+def get_type_of_expression(
+    expression: ASTNode,
+    environment: dict[str, TypeNode]
+) -> TypeNode | None:
+    if isinstance(expression, LiteralNode):
+        return _get_type_of_primitive_literal(expression, environment)
+
+    # TODO: implement all of this
+    elif isinstance(expression, BinaryOperatorNode):
+        return _get_type_of_binary_operator(expression, environment)
+
+    elif isinstance(expression, UnaryOperatorNode):
+        return _get_type_of_unary_operator(expression, environment)
+
+    elif isinstance(expression, FunctionCallNode):
+        return _get_type_of_function_call(expression, environment)
+
+    elif isinstance(expression, FunctionCallNode):
+        return _get_type_of_indexation_call(expression, environment)
+
+    elif isinstance(expression, FunctionCallNode):
+        return _get_type_of_identifier(expression, environment)
+
+
+def _get_type_of_identifier(
+    expression: IdentifierNode,
+    environment: dict[str, TypeNode]
+) -> TypeNode | None:
+    return environment.get(expression.name)
+
+
+def _get_type_of_primitive_literal(
+    literal: LiteralNode,
+    environment: dict[str, TypeNode]
 ) -> TypeNode | None:
     if isinstance(literal, IntegerLiteralNode):
         match literal.size:
             case IntegerSizes.BYTE:
                 type_of_literal = TypeEnum.BYTE
+            case IntegerSizes.SHORT:
+                type_of_literal = TypeEnum.SHORT_INTEGER
             case IntegerSizes.INTEGER:
                 type_of_literal = TypeEnum.INTEGER
-            case _:
+            case IntegerSizes.LONG:
                 type_of_literal = TypeEnum.LONG_INTEGER
+            case IntegerSizes.EXTENDED:
+                type_of_literal = TypeEnum.EXTENDED_INTEGER
+            case _:
+                raise ValueError(f"Invalid literal type: {literal.size}")
 
         return TypeNode(
             TypeCategory.PRIMITIVE,
             TypeLiteral(type_of_literal, *literal.location),
             None,
-            *literal.location
+            *literal.location,
+            _literal=True,
+
         )
     elif isinstance(literal, FloatLiteralNode):
-        pass
-    # TODO: other literals
+        match literal.size:
+            case FloatSizes.FLOAT:
+                type_of_literal = TypeEnum.FLOAT
+            case FloatSizes.DOUBLE:
+                type_of_literal = TypeEnum.DOUBLE
+            case _:
+                raise ValueError(f"Invalid literal type: {literal.size}")
 
+        return TypeNode(
+            TypeCategory.PRIMITIVE,
+            TypeLiteral(type_of_literal, *literal.location),
+            None,
+            *literal.location,
+            _literal=True,
+        )
+    elif isinstance(literal, ImaginaryFloatLiteralNode):
+        return TypeNode(
+            TypeCategory.PRIMITIVE,
+            TypeLiteral(TypeEnum.COMPLEX, *literal.location),
+            None,
+            *literal.location,
+            _literal=True,
+        )
+    elif isinstance(literal, StringLiteralNode):
+        return TypeNode(
+            TypeCategory.PRIMITIVE,
+            TypeLiteral(TypeEnum.STRING, *literal.location),
+            None,
+            *literal.location,
+            _literal=True,
+        )
+    elif isinstance(literal, BooleanLiteralNode):
+        return TypeNode(
+            TypeCategory.PRIMITIVE,
+            TypeLiteral(TypeEnum.BOOLEAN, *literal.location),
+            None,
+            *literal.location,
+            _literal=True,
+        )
+    elif isinstance(literal, ByteStringLiteralNode):
+        return TypeNode(
+            TypeCategory.PRIMITIVE,
+            TypeLiteral(TypeEnum.BYTESTRING, *literal.location),
+            None,
+            *literal.location,
+            _literal=True,
+        )
+    elif isinstance(literal, NullLiteralNode):
+        return TypeNode(
+            TypeCategory.PRIMITIVE,
+            TypeLiteral(TypeEnum.NULL, *literal.location),
+            None,
+            *literal.location,
+            _literal=True,
+        )
+    elif isinstance(literal, UndefinedLiteralNode):
+        return TypeNode(
+            TypeCategory.PRIMITIVE,
+            TypeLiteral(TypeEnum.UNDEFINED, *literal.location),
+            None,
+            *literal.location,
+            _literal=True,
+        )
+    elif isinstance(literal, CharLiteralNode):
+        return TypeNode(
+            TypeCategory.PRIMITIVE,
+            TypeLiteral(TypeEnum.CHAR, *literal.location),
+            None,
+            *literal.location,
+            _literal=True,
+        )
+
+    elif isinstance(literal, ListLiteralNode):
+        elements = [get_type_of_expression(arg, environment) for arg in literal.elements]
+        if len(elements) == 0:
+            return None
+
+        common_compatible_type = elements[0]
+
+        if len(elements) > 1:
+            for element in elements:
+                common_compatible_type = get_common_base(element, common_compatible_type)
+                if common_compatible_type is None:
+                    return None
+
+        return TypeNode(
+            TypeCategory.COLLECTION,
+            TypeLiteral(TypeEnum.ARRAY, *literal.location),
+            [common_compatible_type],
+            *literal.location,
+            _literal=True,
+        )
+
+    elif isinstance(literal, KeymapLiteralNode):
+        elements = [get_type_of_expression(arg, environment) for arg in literal.elements]
+        if len(elements) == 0:
+            return None
+
+        common_compatible_key_type, common_compatible_value_type = elements[0]
+
+        if len(elements) > 1:
+            for element in elements:
+                common_compatible_key_type = get_common_base(element, common_compatible_key_type)
+                common_compatible_value_type = get_common_base(element, common_compatible_value_type)
+                if common_compatible_key_type is None or common_compatible_value_type is None:
+                    return None
+
+        return TypeNode(
+            TypeCategory.COLLECTION,
+            TypeLiteral(TypeEnum.ARRAY, *literal.location),
+            [common_compatible_key_type, common_compatible_value_type],
+            *literal.location,
+            _literal=True,
+        )
+
+    elif isinstance(literal, EmptyLiteralNode):
+        # special case: can be any empty sequence
+        return TypeNode(
+            TypeCategory.COLLECTION,
+            TypeLiteral(TypeEnum.ARRAY, *literal.location),
+            None,
+            *literal.location,
+            _literal=True
+        )
+    else:
+        return None
+
+
+def get_common_base(lhs_type, rhs_type):
+    pass
 
 def match_types(
     current_type: TypeNode,
@@ -80,24 +247,45 @@ def match_types(
             return True
 
         # non-basic cases: implicit cast
-        if current_type_name == TypeEnum.INTEGER:
+        if current_type_name == TypeEnum.BYTE:
+            return target_type in (
+                TypeEnum.SHORT_INTEGER,
+                TypeEnum.INTEGER,
+                TypeEnum.LONG_INTEGER,
+                TypeEnum.EXTENDED_INTEGER,
+                TypeEnum.FLOAT,
+                TypeEnum.DOUBLE,
+                TypeEnum.COMPLEX
+            )
+        elif current_type_name == TypeEnum.SHORT_INTEGER:
+            return target_type in (
+                TypeEnum.INTEGER,
+                TypeEnum.LONG_INTEGER,
+                TypeEnum.EXTENDED_INTEGER,
+                TypeEnum.FLOAT,
+                TypeEnum.DOUBLE,
+                TypeEnum.COMPLEX
+            )
+        elif current_type_name == TypeEnum.INTEGER:
             return target_type in (
                 TypeEnum.LONG_INTEGER,
+                TypeEnum.EXTENDED_INTEGER,
                 TypeEnum.FLOAT,
-                TypeEnum.LONG_FLOAT,
+                TypeEnum.DOUBLE,
                 TypeEnum.COMPLEX
             )
         elif current_type_name == TypeEnum.LONG_INTEGER:
             return target_type in (
-                TypeEnum.LONG_FLOAT,
+                TypeEnum.EXTENDED_INTEGER,
+                TypeEnum.DOUBLE,
                 TypeEnum.COMPLEX,
             )
         elif current_type_name == TypeEnum.FLOAT:
             return target_type in (
-                TypeEnum.LONG_FLOAT,
+                TypeEnum.DOUBLE,
                 TypeEnum.COMPLEX
             )
-        elif current_type_name == TypeEnum.LONG_FLOAT:
+        elif current_type_name == TypeEnum.DOUBLE:
             return target_type in (
                 TypeEnum.COMPLEX,
             )
@@ -108,7 +296,11 @@ def match_types(
     elif current_type.category == TypeCategory.COLLECTION:
 
         # TODO: list literal might be suitable for array, set and list
+        # case 1: literal
+        if current_type.is_literal and current_type_name == TypeEnum.ARRAY:
+            pass
 
+        # case 2: everything else
         # type mismatch == False, no implicit casts
         if current_type_name != target_type_name:
             return False

@@ -51,18 +51,18 @@ class UndefinedLiteralNode(LiteralNode):
     pass
 
 
-class ListLiteralNode(CalculationNode):
+class ListLiteralNode(LiteralNode):
     def __init__(self, elements: list[ASTNode], line: int, position: int):
         super().__init__(line, position)
         self.elements = elements
 
 
-class KeymapLiteralNode(CalculationNode):
+class KeymapLiteralNode(LiteralNode):
     def __init__(self, elements: list[ASTNode], line: int, position: int):
         super().__init__(line, position)
         self.elements = elements
 
 
-class EmptyLiteralNode(CalculationNode):
+class EmptyLiteralNode(LiteralNode):
     def __init__(self, line: int, position: int):
         super().__init__(line, position)

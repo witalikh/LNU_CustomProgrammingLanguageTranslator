@@ -1262,11 +1262,6 @@ class Parser(object):
             line, position = self.line_and_position_of_consumed_token()
             return UndefinedLiteralNode(line, position=position)
 
-        if self.is_consumable(TokenType.BYTE_LITERAL):
-            value = self.consume(TokenType.BYTE_LITERAL)
-            line, position = self.line_and_position_of_consumed_token()
-            return ByteLiteralNode(value, line=line, position=position)
-
         if self.is_consumable(TokenType.BYTE_STRING_LITERAL):
             value = self.consume(TokenType.BYTE_STRING_LITERAL)
             line, position = self.line_and_position_of_consumed_token()

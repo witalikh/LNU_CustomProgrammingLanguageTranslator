@@ -1,5 +1,6 @@
 from enum import IntEnum
 from typing import Literal
+import struct
 
 from .literals import LiteralNode
 
@@ -7,8 +8,15 @@ from .literals import LiteralNode
 # NOTE: it's here due to possible circular import
 class IntegerSizes(IntEnum):
     BYTE = 0
-    INTEGER = 1
-    LONG = 2
+    SHORT = 1
+    INTEGER = 2
+    LONG = 3
+    EXTENDED = 4
+
+
+class FloatSizes(IntEnum):
+    FLOAT = 0
+    DOUBLE = 1
 
 
 class IntegerLiteralNode(LiteralNode):
@@ -19,14 +27,19 @@ class IntegerLiteralNode(LiteralNode):
         self.__init_size_()
 
     def __init_size_(self):
-        if -128 <= self._value <= 127:
+        # at least one bit is reserved for sign
+        bit_length = self._value.bit_length() + 1
+
+        if bit_length <= 8:
             self._size = IntegerSizes.BYTE
-        elif -2_147_483_648 <= self._value <= 2_147_483_647:
+        elif bit_length <= 16:
+            self._size = IntegerSizes.SHORT
+        elif bit_length <= 32:
             self._size = IntegerSizes.INTEGER
-        # elif 0 <= self._value <= 4294967295:
-        #     self._size = IntegerSizes.UNSIGNED
-        else:
+        elif bit_length <= 64:
             self._size = IntegerSizes.LONG
+        else:
+            self._size = IntegerSizes.EXTENDED
 
     @property
     def value(self) -> int:
@@ -67,10 +80,68 @@ class IntegerLiteralNode(LiteralNode):
 class FloatLiteralNode(LiteralNode):
     def __init__(self, value: str, line: int, position: int):
         super().__init__(line, position)
-        self.value = value
+        self._value = float(value)
+        self._size = None
+        self._init_sizes()
+
+    def _init_sizes(self):
+        if self.is_nan or self.is_negative_infinity or self.is_positive_infinity:
+            self._size = FloatSizes.FLOAT
+            return
+
+        try:
+            packed_value = struct.pack('f', self._value)
+            unpacked_value = struct.unpack('f', packed_value)
+            if unpacked_value == self._value:
+                self._size = FloatSizes.FLOAT
+            else:
+                self._size = FloatSizes.DOUBLE
+
+        except (OverflowError, ValueError,) as _:
+            self._size = FloatSizes.DOUBLE
+
+    @property
+    def value(self) -> float:
+        return self._value
+
+    @property
+    def size(self) -> FloatSizes:
+        return self._size
+
+    @property
+    def is_nan(self) -> bool:
+        return self._value != self._value
+
+    @property
+    def is_positive_infinity(self) -> bool:
+        return self._value == float('inf')
+
+    @property
+    def is_negative_infinity(self) -> bool:
+        return self._value == float('-inf')
+
+    @property
+    def is_positive(self) -> bool:
+        return self._value > 0
+
+    @property
+    def is_negative(self) -> bool:
+        return self._value < 0
+
+    @property
+    def is_non_positive(self) -> bool:
+        return self._value <= 0
+
+    @property
+    def is_non_negative(self) -> bool:
+        return self._value >= 0
+
+    @property
+    def is_zero(self) -> bool:
+        return self._value == 0
 
 
 class ImaginaryFloatLiteralNode(LiteralNode):
     def __init__(self, value: str, line: int, position: int):
         super().__init__(line, position)
-        self.value = value
+        self._value = value

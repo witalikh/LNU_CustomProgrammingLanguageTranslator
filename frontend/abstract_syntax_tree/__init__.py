@@ -39,6 +39,7 @@ from .identifiers import (
 from .numeric_literal import (
     IntegerLiteralNode,
     IntegerSizes,
+    FloatSizes,
     FloatLiteralNode,
     ImaginaryFloatLiteralNode,
 )

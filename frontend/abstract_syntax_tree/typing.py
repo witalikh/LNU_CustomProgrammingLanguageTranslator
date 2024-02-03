@@ -43,12 +43,16 @@ class TypeNode(ASTNode):
         args: List[Union["TypeNode", ASTNode]] | None,
         line: int,
         position: int,
+        _literal: bool = False,
     ):
         super().__init__(line, position)
         self.category = category
         self.type = type_node
         self.arguments = args
         self._modifiers = 0
+        self._literal = _literal
+        if self._literal:
+            self.add_flag(TypeModifierFlag.CONSTANT)
 
     def __eq__(self, other):
         return all((
@@ -63,6 +67,10 @@ class TypeNode(ASTNode):
 
     def remove_flag(self, flag: TypeModifierFlag):
         self._modifiers &= ~flag
+
+    @property
+    def is_literal(self) -> bool:
+        return self._literal
 
     @property
     def modifiers(self) -> str:
