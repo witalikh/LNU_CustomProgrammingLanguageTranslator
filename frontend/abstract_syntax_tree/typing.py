@@ -44,6 +44,9 @@ class TypeNode(ASTNode):
         line: int,
         position: int,
         _literal: bool = False,
+        _const: bool = False,
+        _reference: bool = False,
+        _nullable: bool = False
     ):
         super().__init__(line, position)
         self.category = category
@@ -51,8 +54,15 @@ class TypeNode(ASTNode):
         self.arguments = args
         self._modifiers = 0
         self._literal = _literal
-        if self._literal:
+        if _const:
             self.add_flag(TypeModifierFlag.CONSTANT)
+        if _reference:
+            self.add_flag(TypeModifierFlag.REFERENCE)
+        if _nullable:
+            self.add_flag(TypeModifierFlag.NULLABLE)
+
+        self.represents_generic_param = False if self.category != TypeCategory.CLASS else None
+        self._class = None
 
     def __eq__(self, other):
         return all((
@@ -67,6 +77,10 @@ class TypeNode(ASTNode):
 
     def remove_flag(self, flag: TypeModifierFlag):
         self._modifiers &= ~flag
+
+    @property
+    def name(self) -> str:
+        return self.type.name
 
     @property
     def is_literal(self) -> bool:
@@ -107,3 +121,9 @@ class TypeNode(ASTNode):
                 "arguments": self.arguments,
                 "modifiers": self.modifiers,
             }
+
+    # noinspection PyUnresolvedReferences
+    def set_class(self, cls: "ClassDefinitionNode"):
+        if self.category not in (TypeCategory.CLASS, TypeCategory.GENERIC_CLASS):
+            raise ValueError("Cannot assign class node to this")
+        self._class = cls

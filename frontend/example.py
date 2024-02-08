@@ -118,7 +118,16 @@ Main();
 
 
 def scenario_4():
-    code_example = (r"""   
+    code_example = (r"""
+    
+    class my_class[T] from x[integer]{
+        public integer x;
+        
+        public static function[my_class] operator + (my_class x, T y){
+            this.x := y;
+        }
+    }
+     
     const reference my_class[integers[x, const integer]] x = new my_class[integers[x]]("Hello");
     x[5] := 4;
     array[integer, 6] x = [1, 2, 3, 4];
@@ -138,7 +147,7 @@ def scenario_4():
 
 
 if __name__ == '__main__':
-    scenario_3()
+    scenario_4()
 
 
 # Program

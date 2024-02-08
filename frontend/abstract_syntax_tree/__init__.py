@@ -8,6 +8,8 @@ from .binary_node import (
     AssignmentNode,
     IndexNode,
     KeymapOperatorNode,
+    CastOperatorNode,
+    CoalesceOperatorNode,
 )
 from .classes import (
     AccessType,
@@ -31,7 +33,8 @@ from .keywords import (
     BreakNode,
     ContinueNode,
     DeductionNode,
-    ReturnNode
+    ReturnNode,
+    ThisNode
 )
 from .identifiers import (
     IdentifierNode
@@ -71,7 +74,8 @@ from .typing import (
 )
 from .unary_node import (
     UnaryOperatorNode,
-    AllocationOperatorNode
+    AllocationOperatorNode,
+    ReferenceOperatorNode
 )
 from .variables import (
     VariableDeclarationNode

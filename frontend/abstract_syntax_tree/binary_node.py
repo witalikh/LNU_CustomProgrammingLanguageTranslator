@@ -16,26 +16,52 @@ class BinaryOperatorNode(CalculationNode):
 
 
 class AssignmentNode(BinaryOperatorNode):
-    pass
+    """
+    a = b = c
+    """
+
+    def __init__(self, left: IdentifierNode, operator: str, right: ASTNode, line: int, position: int):
+        super().__init__(left, operator, right, line, position)
 
 
 class LogicalOperatorNode(BinaryOperatorNode):
+    """
+    Accepts booleans, return booleans
+    """
     pass
 
 
 class ComparisonNode(BinaryOperatorNode):
+    """
+    Accepts expressions, returns boolean
+    """
     pass
 
 
 class ArithmeticOperatorNode(BinaryOperatorNode):
+    """
+    Accepts expressions, return expressions
+    """
     pass
 
 
 class MemberOperatorNode(BinaryOperatorNode):
+    """
+    Class.member()
+    ref class->member()
+    """
     pass
 
 
 class KeymapOperatorNode(BinaryOperatorNode):
+    pass
+
+
+class CastOperatorNode(BinaryOperatorNode):
+    pass
+
+
+class CoalesceOperatorNode(BinaryOperatorNode):
     pass
 
 

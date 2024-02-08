@@ -5,6 +5,10 @@ class BreakNode(ASTNode):
     pass
 
 
+class ThisNode(ASTNode):
+    pass
+
+
 class ContinueNode(ASTNode):
     pass
 

@@ -54,6 +54,8 @@ class _TreePrinter:
         result_string = f"{class_name}\n"
 
         attrs = tree.__tree_dict__() if hasattr(tree, "__tree_dict__") else tree.__dict__
+        attrs.pop("line", None)
+        attrs.pop("position", None)
         arg_num = len(attrs)
         for index, (arg_name, arg_value) in enumerate(attrs.items()):
             marker = _TreePrinter.LAST_VAR if index == arg_num - 1 else _TreePrinter.MIDDLE_VAR

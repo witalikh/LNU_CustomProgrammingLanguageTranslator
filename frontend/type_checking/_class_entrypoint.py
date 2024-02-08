@@ -1,0 +1,197 @@
+from ..abstract_syntax_tree import *
+
+from .shared import error_logger, class_definitions, function_definitions
+
+from ._type_validate import validate_type
+
+from ._class_inheritance import validate_class_inheritance
+from ._overloads import validate_overloaded_function_definitions
+
+
+def validate_all_class_definitions() -> bool:
+    """
+    Validate all class definitions in the program
+    :return: True if all classes are valid, False otherwise
+    """
+    # 1. Check if class definitions are duplicated
+    has_no_duplicates = _check_no_duplicate_class_definitions()
+    if not has_no_duplicates:
+        return False
+
+    # 2. Check if fields inside them are duplicated or not
+    no_field_duplicates = [
+        _flat_check_no_duplicate_fields(concrete_class)
+        for concrete_class in class_definitions
+    ]
+
+    valid_field_types = [
+        _flat_check_field_types(concrete_class)
+        for concrete_class in class_definitions
+    ]
+
+    # 3. Check if methods inside classes are not duplicated in terms of overloading etc
+    no_method_collisions = [
+        _flat_check_no_method_collisions(concrete_class)
+        for concrete_class in class_definitions
+    ]
+
+    if not (no_field_duplicates and valid_field_types and no_method_collisions):
+        return False
+
+    # 3. Validate classes themselves
+    # (inheritance, methods content, has constructor...)
+    valid_classes = [
+        _validate_class_definition(concrete_class)
+        for concrete_class in class_definitions
+    ]
+    return all(valid_classes)
+
+
+# noinspection DuplicatedCode
+def _check_no_duplicate_class_definitions() -> bool:
+    """
+    (Hidden) Check if there are no duplicate class definitions in the program
+    :return: True if there are no duplicate class definitions in the program, False otherwise
+    """
+    # 1. check if the names are repeating
+    distinct_classes = set()
+    repeated_classes = set()
+    for class_definition in class_definitions:
+        name = class_definition.name
+        if name not in distinct_classes:
+            distinct_classes.add(name)
+            continue
+        else:
+            repeated_classes.add(name)
+
+    # 2. If there are, error log every duplicate definition
+    for class_definition in class_definitions:
+        if class_definition.name in repeated_classes:
+            error_logger.add(
+                class_definition,
+                f"Repeated class name: {class_definition.name}"
+            )
+
+    return not repeated_classes
+
+
+# noinspection DuplicatedCode
+def _flat_check_no_duplicate_fields(
+    concrete_class: ClassDefinitionNode
+) -> bool:
+    """
+    (Hidden)
+    Check if there are no duplicated field names in the current class
+    (Doesn't care about superclasses for now)
+    :param concrete_class:
+    :return:
+    """
+    fields_definitions = concrete_class.fields_definitions + concrete_class.static_fields_definitions
+
+    distinct_fields = set()
+    repeated_fields = set()
+    for field_definition in fields_definitions:
+        name = field_definition.name
+        if name not in distinct_fields:
+            distinct_fields.add(name)
+            continue
+        else:
+            repeated_fields.add(name)
+
+    for field_definition in fields_definitions:
+        if field_definition.name in repeated_fields:
+            error_logger.add(
+                field_definition,
+                f"Repeated field name: {field_definition.name}"
+            )
+
+    return not repeated_fields
+
+
+def _flat_check_field_types(
+    concrete_class: ClassDefinitionNode
+) -> bool:
+    return all((
+        validate_type(f, concrete_class.generic_params)
+        for f in concrete_class.all_fields_definitions
+    ))
+
+
+def _flat_check_no_method_collisions(
+    concrete_class: ClassDefinitionNode
+) -> bool:
+    all_methods = concrete_class.static_methods_definitions + concrete_class.methods_definitions
+    valid_overloads = validate_overloaded_function_definitions(all_methods)
+    if not valid_overloads:
+        return False
+
+    valid = True
+    for static_method in concrete_class.static_methods_definitions:
+        if not static_method.is_public:
+            error_logger.add(
+                static_method.location,
+                f"Static method cannot be non-public"
+            )
+            valid = False
+        if static_method.is_virtual:
+            error_logger.add(
+                static_method.location,
+                f"Static method cannot be virtual"
+            )
+            valid = False
+        if static_method.is_overload:
+            error_logger.add(
+                static_method.location,
+                f"Static method cannot be overloaded"
+            )
+            valid = False
+    return valid
+
+
+# TODO: finish it!!
+def _validate_class_definition(
+    concrete_class: ClassDefinitionNode
+) -> bool:
+    # For now,
+    # duplicate classes, fields and methods are checked
+
+    # 1. Check inheritance
+    valid_inheritance = validate_class_inheritance(concrete_class)
+    if not valid_inheritance:
+        return False
+
+    valid_static_methods = [
+        validate_static_method_definition(
+            concrete_class,
+            static_method
+        )
+        for static_method in concrete_class.methods_definitions
+    ]
+
+    valid_methods = [
+        validate_method_definition(
+            concrete_class,
+            method
+        )
+        for method in concrete_class.methods_definitions
+    ]
+    return all((
+        all(valid_methods),
+        all(valid_static_methods),
+    ))
+
+
+def validate_method_definition(
+    concrete_class: ClassDefinitionNode,
+    method: ClassMethodDeclarationNode
+) -> bool:
+    # TODO: implement
+    pass
+
+
+def validate_static_method_definition(
+    concrete_class: ClassDefinitionNode,
+    field: ClassMethodDeclarationNode
+) -> bool:
+    # TODO: implement
+    pass

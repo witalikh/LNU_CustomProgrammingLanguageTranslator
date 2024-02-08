@@ -119,6 +119,8 @@ class Operator(CustomEnum):
     STRICT_EQUAL = "==="
     NOT_STRICT_EQUAL = "!=="
 
+    MEMBERSHIP_OPERATOR = "in"
+
     # syntax sugar
     FUNCTIONAL = "@"
 
@@ -137,8 +139,6 @@ class Operator(CustomEnum):
     NULL_COALESCE = "??"
     NEW_INSTANCE = "new"
     DELETE_INSTANCE = "delete"
-
-    MEMBERSHIP_OPERATOR = "in"
 
 
 class Operands(CustomEnum):

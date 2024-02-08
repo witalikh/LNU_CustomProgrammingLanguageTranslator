@@ -20,6 +20,8 @@ class FunctionDeclarationNode(ASTNode):
         self.parameters = parameters
         self.function_body = function_body
 
+        self.has_overloads = False
+
     @property
     def parameters_signature(self) -> list[TypeNode]:
         return list(

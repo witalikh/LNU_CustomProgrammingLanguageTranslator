@@ -4,13 +4,22 @@ from .shared import error_logger, class_definitions, function_definitions
 from ._overloads import validate_overloaded_function_definitions
 
 
+from ._type_validate import validate_type
+
+
+def initialize_variables_environment_from_parameters(
+    parameters: list[FunctionParameter]
+) -> dict[str, TypeNode]:
+    pass
+
+
 def validate_all_function_definitions() -> bool:
     """
     Validate all global function definitions, including
     return type, parameters and statements typing
     :return: true if all function definitions are valid, otherwise false
     """
-    valid_overloads = validate_overloaded_function_definitions()
+    valid_overloads = validate_overloaded_function_definitions(function_definitions)
 
     valid_functions = [
         _validate_function_definition(_function)
@@ -18,10 +27,6 @@ def validate_all_function_definitions() -> bool:
     ]
 
     return valid_overloads and all(valid_functions)
-
-
-def get_parameters_signature(parameters: list[FunctionParameter]) -> tuple[str]:
-    pass
 
 
 def _validate_function_definition(
@@ -46,4 +51,7 @@ def _validate_function_definition(
 def _validate_function_signature(
     function_node: FunctionDeclarationNode
 ) -> bool:
-    pass
+    return all((
+        validate_type(function_node.return_type),
+        all((validate_type(x) for x in function_node.parameters_signature)),
+    ))

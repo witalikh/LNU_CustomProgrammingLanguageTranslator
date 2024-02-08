@@ -3,8 +3,8 @@ from ..abstract_syntax_tree import *
 from .shared import error_logger, class_definitions, function_definitions
 from ..abstract_syntax_tree.unary_node import ReferenceOperatorNode
 
+from ._type_function import match_signatures
 
-from ._overloads import match_signatures
 
 # TODO: implement this all
 # TODO: describe modules
