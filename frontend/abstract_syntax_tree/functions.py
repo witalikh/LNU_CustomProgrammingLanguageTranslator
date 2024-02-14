@@ -21,12 +21,16 @@ class FunctionDeclarationNode(ASTNode):
         self.function_body = function_body
 
         self.has_overloads = False
+        self._usages = 0
 
     @property
     def parameters_signature(self) -> list[TypeNode]:
         return list(
             map(lambda p: p.type_node, self.parameters)
         )
+
+    def use(self):
+        self._usages += 1
 
 
 class FunctionParameter(ASTNode):
@@ -43,9 +47,20 @@ class FunctionParameter(ASTNode):
         self.parameter_name = parameter_name
         self.default_value = default_value
 
-
 class FunctionCallNode(CalculationNode):
-    def __init__(self, identifier, arguments: list[ASTNode], line: int, position: int):
+    def __init__(
+        self,
+        identifier,
+        arguments: list[ASTNode],
+        line: int,
+        position: int,
+        is_constructor: bool = False,
+    ):
         super().__init__(line, position)
         self.identifier = identifier
         self.arguments = arguments
+
+        self.is_constructor = is_constructor
+
+        # Type checking
+        self.function = None

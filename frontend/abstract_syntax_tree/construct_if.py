@@ -17,3 +17,12 @@ class IfElseNode(ASTNode):
         self.condition = condition
         self.if_scope = if_scope
         self.else_scope = else_scope
+
+        # self._all_paths_return = None
+
+    # @property
+    # def all_paths_return(self):
+    #     if self._all_paths_return is None:
+    #         if self.else_scope is None:
+    #
+    #         self._all_paths_return = self.if_scope.all_paths_return

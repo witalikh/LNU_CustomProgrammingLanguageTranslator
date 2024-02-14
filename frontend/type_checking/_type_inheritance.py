@@ -1,8 +1,6 @@
 from ..abstract_syntax_tree import *
-from .shared import error_logger, class_definitions, function_definitions
 
-
-from ._type_class import get_class_by_name
+from ._helpers_class import get_class_by_name
 from ._type_match import strict_match_types
 
 

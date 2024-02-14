@@ -102,7 +102,28 @@ class GenericParameterNode(ASTNode):
         self.name = name
 
 
-class ClassMethodDeclarationNode(ASTNode):
+class AccessTypeMixin:
+    @property
+    def access_type(self) -> str:
+        return self._access_type
+
+    @property
+    def is_public(self) -> bool:
+        return self._access_type == AccessType.PUBLIC
+
+    @property
+    def is_private(self) -> bool:
+        return self._access_type == AccessType.PRIVATE
+
+    @property
+    def is_protected(self) -> bool:
+        return self._access_type == AccessType.PROTECTED
+
+    def set_access_type(self, value: AccessType | str):
+        self._access_type = value
+
+
+class ClassMethodDeclarationNode(ASTNode, AccessTypeMixin):
     def __init__(
         self,
         return_type: TypeNode,
@@ -127,24 +148,8 @@ class ClassMethodDeclarationNode(ASTNode):
         self._virtual = virtual
         self._overload = overload
 
-    @property
-    def access_type(self) -> str:
-        return self._access_type
-
-    @property
-    def is_public(self) -> bool:
-        return self._access_type == AccessType.PUBLIC
-
-    @property
-    def is_private(self) -> bool:
-        return self._access_type == AccessType.PRIVATE
-
-    @property
-    def is_protected(self) -> bool:
-        return self._access_type == AccessType.PROTECTED
-
-    def set_access_type(self, value: AccessType | str):
-        self._access_type = value
+        # Type checker
+        self._usages = 0
 
     @property
     def is_static(self) -> bool:
@@ -176,11 +181,14 @@ class ClassMethodDeclarationNode(ASTNode):
             map(lambda p: p.type_node, self.parameters)
         )
 
+    def use(self):
+        self._usages += 1
 
-class ClassFieldDeclarationNode(ASTNode):
+
+class ClassFieldDeclarationNode(ASTNode, AccessTypeMixin):
     def __init__(
         self,
-        _type: ASTNode,
+        _type: TypeNode,
         name: str,
         operator: str | None,
         value: ASTNode | None,
@@ -198,24 +206,8 @@ class ClassFieldDeclarationNode(ASTNode):
         self._access_type = access_type
         self._static = static
 
-    @property
-    def access_type(self) -> str:
-        return self._access_type
-
-    @property
-    def is_public(self) -> bool:
-        return self._access_type == AccessType.PUBLIC
-
-    @property
-    def is_private(self) -> bool:
-        return self._access_type == AccessType.PRIVATE
-
-    @property
-    def is_protected(self) -> bool:
-        return self._access_type == AccessType.PROTECTED
-
-    def set_access_type(self, value: AccessType | str):
-        self._access_type = value
+        # Type checking
+        self._usages = 0
 
     @property
     def is_static(self) -> bool:
@@ -224,3 +216,6 @@ class ClassFieldDeclarationNode(ASTNode):
     @is_static.setter
     def is_static(self, value: bool):
         self._static = value
+
+    def use(self):
+        self._usages += 1

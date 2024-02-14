@@ -6,8 +6,7 @@ Contains validate_type function that checks if the TypeNode is valid given in th
 from ..abstract_syntax_tree import TypeNode, ASTNode, TypeCategory, ClassDefinitionNode, GenericParameterNode
 from .shared import error_logger
 
-
-from ._type_class import get_class_by_name
+from ._helpers_class import get_class_by_name
 
 
 def validate_type(
@@ -20,10 +19,10 @@ def validate_type(
 
     # Everything beside TypeNode is invalid
     if not isinstance(type_to_check, TypeNode):
-        error_logger.add(type_to_check.location, "Invalid type expression")
+        error_logger.add(type_to_check, "Invalid type expression")
         return False
 
-    # Every primitive type is valid
+    # Every primitive type is valid as it's recognized by parser
     if type_to_check.category == TypeCategory.PRIMITIVE:
         return True
 

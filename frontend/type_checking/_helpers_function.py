@@ -1,5 +1,7 @@
-from ..abstract_syntax_tree import TypeNode
+from ..abstract_syntax_tree import TypeNode, FunctionDeclarationNode
 from ._type_match import match_types, strict_match_types
+
+from .shared import function_definitions
 
 
 def match_signatures(args_signature: list[TypeNode], function_signature: list[TypeNode]) -> bool:
@@ -30,3 +32,16 @@ def strict_match_signatures(args_signature: list[TypeNode], function_signature: 
         if not strict_match_types(arg, param):
             return False
     return True
+
+
+def get_function(
+    func_name: str,
+    args_signature: list[TypeNode]
+) -> tuple[bool, FunctionDeclarationNode | None]:
+    for func in function_definitions:
+        if func.function_name != func_name:
+            continue
+
+        if match_signatures(args_signature, func.parameters_signature):
+            return True, func
+    return False, None

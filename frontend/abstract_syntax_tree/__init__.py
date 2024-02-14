@@ -1,15 +1,11 @@
 from .ast_node import ASTNode
-from .binary_node import (
+from .operators import (
     BinaryOperatorNode,
-    LogicalOperatorNode,
     MemberOperatorNode,
-    ArithmeticOperatorNode,
-    ComparisonNode,
     AssignmentNode,
     IndexNode,
-    KeymapOperatorNode,
-    CastOperatorNode,
-    CoalesceOperatorNode,
+    UnaryOperatorNode,
+    OperatorCategory
 )
 from .classes import (
     AccessType,
@@ -57,6 +53,7 @@ from .literals import (
     BooleanLiteralNode,
     ByteStringLiteralNode,
     ListLiteralNode,
+    KeymapElementNode,
     KeymapLiteralNode,
     EmptyLiteralNode,
 )
@@ -67,15 +64,9 @@ from .scope import (
     ScopeNode
 )
 from .typing import (
-    TypeModifierFlag,
     TypeCategory,
     TypeLiteral,
     TypeNode
-)
-from .unary_node import (
-    UnaryOperatorNode,
-    AllocationOperatorNode,
-    ReferenceOperatorNode
 )
 from .variables import (
     VariableDeclarationNode

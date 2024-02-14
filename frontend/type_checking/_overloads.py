@@ -1,5 +1,5 @@
 # NOTE: DONE
-from ._type_function import match_signatures
+from ._helpers_function import match_signatures
 from ..abstract_syntax_tree import *
 
 from .shared import error_logger

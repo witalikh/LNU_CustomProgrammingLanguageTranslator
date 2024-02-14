@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Sequence
 
 
@@ -6,6 +6,7 @@ class ASTNode(ABC):
     def __init__(self, line, position):
         self.line = line
         self.position = position
+        self.valid = None
 
     def __repr__(self):
         return _TreePrinter.print_tree(self)
@@ -13,6 +14,10 @@ class ASTNode(ABC):
     @property
     def location(self) -> tuple[int, int]:
         return self.line, self.position
+
+    # @abstractmethod
+    # def translate(self):
+    #     pass
 
 
 class _TreePrinter:
@@ -53,7 +58,7 @@ class _TreePrinter:
             class_name = tree.__class__.__name__.replace("Node", "")
         result_string = f"{class_name}\n"
 
-        attrs = tree.__tree_dict__() if hasattr(tree, "__tree_dict__") else tree.__dict__
+        attrs = tree.__tree_dict__() if hasattr(tree, "__tree_dict__") else tree.__dict__.copy()
         attrs.pop("line", None)
         attrs.pop("position", None)
         arg_num = len(attrs)

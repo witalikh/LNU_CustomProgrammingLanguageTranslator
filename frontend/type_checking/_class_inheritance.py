@@ -2,8 +2,8 @@
 from ..abstract_syntax_tree import *
 
 from .shared import error_logger
-from ._type_class import get_class_by_name
-from ._type_function import strict_match_signatures
+from ._helpers_class import get_class_by_name
+from ._helpers_function import strict_match_signatures
 from ._type_match import strict_match_types
 
 
@@ -59,31 +59,31 @@ def _link_and_validate_class_inheritance(
         if (
             curr_class_node is None
         ):
-            error_logger.error(
+            error_logger.add(
                 class_node.location,
                 f"Inherited class {class_nodes_list[-1].superclass.name} is not unambiguously defined"
             )
             valid = False
         elif curr_class_node.name in class_inheritance_names_list:
-            error_logger.error(
+            error_logger.add(
                 class_node.location,
                 f"Circular inheritance: {curr_class_node.name} from {curr_class_node.superclass.name}"
             )
             valid = False
         elif curr_class_node.is_valid_inherited_class is False:
-            error_logger.error(
+            error_logger.add(
                 class_node.location,
                 f"Invalid inheritance: {curr_class_node.name} from {curr_class_node.superclass.name}"
             )
             valid = False
         elif len(curr_class_node.generic_params) != generic_args:
-            error_logger.error(
+            error_logger.add(
                 class_node.location,
                 f"Superclass should be instantiated with same generic signature!"
             )
             valid = False
         elif not all((lhs.name == rhs.name for lhs, rhs in zip(curr_class_node.generic_params, generic_args))):
-            error_logger.error(
+            error_logger.add(
                 class_node.location,
                 f"Superclass should be instantiated with same generic signature!"
             )

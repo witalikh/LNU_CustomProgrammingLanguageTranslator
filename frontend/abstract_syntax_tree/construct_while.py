@@ -13,3 +13,5 @@ class WhileNode(ASTNode):
         super().__init__(line, position)
         self.condition = condition
         self.while_scope = while_scope
+
+        # self.all_paths_return = None

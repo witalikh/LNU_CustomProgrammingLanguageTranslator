@@ -79,7 +79,7 @@ def common_base(left_type: TypeNode, right_type: TypeNode) -> TypeNode | None:
         )
 
 
-def common_primitive_type(left_type: str, right_type: str):
+def common_primitive_type(left_type: TypeEnum | str, right_type: TypeEnum | str) -> TypeEnum | None:
     """
     Returns the common primitive type from the given primitive type names
     :param left_type:

@@ -1,6 +1,6 @@
 from ..abstract_syntax_tree import *
 
-from .shared import error_logger, class_definitions, function_definitions
+from .shared import error_logger, class_definitions
 
 from ._type_validate import validate_type
 
@@ -101,20 +101,25 @@ def _flat_check_no_duplicate_fields(
     for field_definition in fields_definitions:
         if field_definition.name in repeated_fields:
             error_logger.add(
-                field_definition,
+                field_definition.location,
                 f"Repeated field name: {field_definition.name}"
             )
 
+    if repeated_fields:
+        concrete_class.valid = False
     return not repeated_fields
 
 
 def _flat_check_field_types(
     concrete_class: ClassDefinitionNode
 ) -> bool:
-    return all((
-        validate_type(f, concrete_class.generic_params)
+    valid_field_types = all((
+        validate_type(f.type, concrete_class.generic_params)
         for f in concrete_class.all_fields_definitions
     ))
+    if not valid_field_types:
+        concrete_class.valid = False
+    return valid_field_types
 
 
 def _flat_check_no_method_collisions(
@@ -145,6 +150,8 @@ def _flat_check_no_method_collisions(
                 f"Static method cannot be overloaded"
             )
             valid = False
+    if not valid:
+        concrete_class.valid = False
     return valid
 
 
@@ -158,6 +165,7 @@ def _validate_class_definition(
     # 1. Check inheritance
     valid_inheritance = validate_class_inheritance(concrete_class)
     if not valid_inheritance:
+        concrete_class.valid = False
         return False
 
     valid_static_methods = [
@@ -175,23 +183,34 @@ def _validate_class_definition(
         )
         for method in concrete_class.methods_definitions
     ]
-    return all((
+    everything_is_valid = all((
         all(valid_methods),
         all(valid_static_methods),
     ))
+
+    concrete_class.valid = everything_is_valid
+    return everything_is_valid
 
 
 def validate_method_definition(
     concrete_class: ClassDefinitionNode,
     method: ClassMethodDeclarationNode
 ) -> bool:
+    valid_return_type = validate_type(method.return_type, concrete_class.generic_params)
+    valid_signature = (
+        all((validate_type(param, concrete_class.generic_params) for param in method.parameters_signature))
+    )
     # TODO: implement
     pass
 
 
 def validate_static_method_definition(
     concrete_class: ClassDefinitionNode,
-    field: ClassMethodDeclarationNode
+    method: ClassMethodDeclarationNode
 ) -> bool:
     # TODO: implement
+    valid_return_type = validate_type(method.return_type, concrete_class.generic_params)
+    valid_signature = (
+        all((validate_type(param, concrete_class.generic_params) for param in method.parameters_signature))
+    )
     pass

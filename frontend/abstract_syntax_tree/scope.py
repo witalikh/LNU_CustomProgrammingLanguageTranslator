@@ -12,3 +12,5 @@ class ScopeNode(ASTNode):
         super().__init__(line, position)
         self.statements = statements
         self.local_variables = local_variables or []
+
+        # self.all_paths_return = None

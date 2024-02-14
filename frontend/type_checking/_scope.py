@@ -3,87 +3,105 @@ from ..abstract_syntax_tree import *
 from .shared import error_logger, class_definitions, function_definitions
 from ._environment import get_variable_type_from_environment
 
-def validate_expression(
+
+def validate_scope(
+    scope: ScopeNode,
+    environment: dict[str, TypeNode],
+    is_loop: bool = False,
+    is_function: bool = False,
+    is_class: bool = False,
+    expected_return_type: ClassDefinitionNode | TypeNode | None = None,
+    current_class: TypeNode | None = None,
+    is_class_nonstatic_method: bool = False,
+    outermost_function_scope: bool = False
+):
+    # if empty
+    if not scope.statements:
+        if is_loop:
+            error_logger.add(
+                scope.statements,
+                "Loop requires at least one statement in the scope"
+            )
+            scope.valid = False
+            return False
+
+        if is_function and expected_return_type is not None:
+            error_logger.add(
+                scope.statements,
+                "Function requires at least one return statement in the scope"
+            )
+            scope.valid = False
+            return False
+
+    # validate every expression
+    valid_expression = [
+        _validate_expression(
+            expr,
+            environment,
+            is_loop,
+            is_function,
+            is_class,
+            expected_return_type,
+            current_class,
+            is_class_nonstatic_method,
+        )
+        for expr in scope.statements
+    ]
+
+    scope.valid = all(valid_expression)
+    return scope.valid
+
+    # last_expression = scope.statements[-1]
+    # if isinstance(last_expression, ReturnNode):
+    #     scope.all_paths_return = True
+    #
+    # elif isinstance(last_expression, (WhileNode, IfElseNode, ScopeNode)):
+    #     scope.all_paths_return = last_expression.all_paths_return
+    #
+    # else:
+    #     scope.all_paths_return = False
+    #
+    #
+    # # TODO: all paths return
+    # if is_function and outermost_function_scope and expected_return_type is not None:
+    #     if not scope.all_paths_return:
+    #         error_logger.add(
+    #             scope.location,
+    #             f"Not all paths return value in this scope"
+    #         )
+    #         return False
+
+
+def _validate_expression(
     expression: ASTNode,
-    environment: dict[str, TypeNode]
-) -> bool:
-    if isinstance(expression, VariableDeclarationNode):
-        return _validate_variable_declaration(expression, environment)
-        # expression.type
-        # expression.name
-        # expression.value
-        # expression.operator
-
-    if isinstance(expression, AssignmentNode):
-        return _validate_assignment_expression(expression.left, expression.operator, expression.right, environment)
-
-    elif isinstance(expression, IfElseNode):
+    environment: dict[str, TypeNode],
+    is_loop: bool = False,
+    is_function: bool = False,
+    is_class: bool = False,
+    expected_return_type: TypeNode | None = None,
+    current_class: ClassDefinitionNode | TypeNode | None = None,
+    is_class_nonstatic_method: bool = False
+):
+    if isinstance(expression, IfElseNode):
         pass
 
     elif isinstance(expression, WhileNode):
         pass
 
-    elif isinstance(expression, FunctionCallNode):
+    elif isinstance(expression, ScopeNode):
         pass
 
-def _validate_variable_declaration(
-    expression: VariableDeclarationNode,
-    environment: dict[str, TypeNode]
-) -> bool:
-    variable_name = expression.name
-    if variable_name in environment:
-        error_logger.add(expression.location, f"Name {variable_name} already exists in this context")
-        return False
+    elif isinstance(expression, AssignmentNode):
+        pass
 
+    elif isinstance(expression, VariableDeclarationNode):
+        pass
 
-def _validate_assignment_expression(
-    left: IndexNode | IdentifierNode,
-    operator: str,
-    right: ASTNode,
-    environment: dict[str, TypeNode]
-) -> bool:
-    valid_left, expression_type = _check_identifier_assignable(left, environment)
+    elif isinstance(expression, ReturnNode):
+        pass
 
-    variable_type = get_variable_type_from_environment( environment)
+    elif isinstance(expression, ContinueNode):
+        pass
 
-
-def _check_identifier_assignable(
-    identifier: IdentifierNode | IndexNode | ASTNode,
-    environment: dict[str, TypeNode]
-) -> tuple[bool, TypeNode | None]:
-    if isinstance(identifier, IdentifierNode):
-        variable_type = get_variable_type_from_environment(identifier.name, environment, identifier.location)
-        if variable_type is None:
-            return False, None
-        return True, variable_type
-    elif isinstance(identifier, IndexNode):
-        valid_indexation, expression_type = _check_indexation(identifier, environment)
-    else:
-        error_logger.add(identifier.location, f"Invalid expression type on assignment lhs: {type(identifier)}")
-        return False, None
-
-def validate_scope_expressions(
-    scope: ScopeNode,
-    environment: dict[str, TypeNode]
-) -> bool:
-
-    location = scope.location
-    expressions = scope.statements
-
-    if not check_no_duplicate_variable_declarations_in_block(error_logger, expressions, location):
-        return False
-
-    if not expressions:
-        return True
-
-    else:
-
-        current_environment = environment.copy()
-        for expression in expressions:
-            result = check_expression(
-                expression,
-                current_environment,
-
-            )
-
-    pass
+    elif isinstance(expression, BreakNode):
+        pass

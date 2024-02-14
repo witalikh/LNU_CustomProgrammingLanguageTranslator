@@ -1,9 +1,10 @@
 """
 For testing and debugging purposes, coz for now I'm lazy for unit tests
 """
-from lexer import Lexer
-from syntax import RULES
-from parser import Parser
+from frontend.lexer import Lexer
+from frontend.syntax import RULES
+from frontend.parser import Parser
+from frontend.type_checking.entrypoint import type_check_program
 
 
 def scenario_1():
@@ -53,6 +54,7 @@ def scenario_2():
     parser = Parser(lexemes_iter)
     x = parser.parse()
     print(x)
+    print(type_check_program(x))
 
 
 def scenario_3():
@@ -144,6 +146,7 @@ def scenario_4():
     parser = Parser(lexemes_iter)
     x = parser.parse()
     print(x)
+    print(type_check_program(x))
 
 
 if __name__ == '__main__':

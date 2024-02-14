@@ -1,11 +1,11 @@
-from etc import (
+from .etc import (
     CustomEnum,
     join_bounded_keywords_as_regex,
     bounded,
     join_partially_bounded_keywords_as_regex,
     join_unbounded_keywords_as_regex
 )
-from tokens import TokenType
+from .tokens import TokenType
 
 
 class SimpleType(CustomEnum):

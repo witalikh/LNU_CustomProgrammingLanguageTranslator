@@ -57,8 +57,21 @@ class ListLiteralNode(LiteralNode):
         self.elements = elements
 
 
+class KeymapElementNode(CalculationNode):
+    def __init__(
+            self,
+            left: ASTNode,
+            right: ASTNode,
+            line: int,
+            position: int
+    ):
+        super().__init__(line, position)
+        self.left = left
+        self.right = right
+
+
 class KeymapLiteralNode(LiteralNode):
-    def __init__(self, elements: list[ASTNode], line: int, position: int):
+    def __init__(self, elements: list[KeymapElementNode], line: int, position: int):
         super().__init__(line, position)
         self.elements = elements
 

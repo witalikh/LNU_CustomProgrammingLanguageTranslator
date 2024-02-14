@@ -1,7 +1,7 @@
 from ..abstract_syntax_tree import ProgramNode
 from .shared import error_logger, class_definitions, function_definitions
 
-from ._classes import validate_all_class_definitions
+from ._class_entrypoint import validate_all_class_definitions
 from ._functions import validate_all_function_definitions
 
 
@@ -21,7 +21,7 @@ def type_check_program(program: ProgramNode) -> bool:
     valid_program = _check_program(program)
     if not valid_program:
         for error in error_logger:
-            print(error, sys.stderr)
+            print(error, file=sys.stderr)
     return valid_program
 
 
