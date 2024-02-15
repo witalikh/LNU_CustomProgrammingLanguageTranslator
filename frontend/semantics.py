@@ -1,5 +1,5 @@
 from enum import StrEnum
-from .syntax import Operator
+from .syntax import Operator, Assignment
 
 
 class TypeEnum(StrEnum):

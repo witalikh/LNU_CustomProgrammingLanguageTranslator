@@ -1,10 +1,11 @@
-from typing import Tuple, Union
+from typing import Tuple, Union, TypedDict, Unpack
 
 from ..abstract_syntax_tree import *
 from ..semantics import TypeEnum, POSSIBLE_OVERLOAD_OPERATORS, OPERATOR_NAMES
 
 from ._type_cast import common_base, common_primitive_type
-from ..syntax import Operator
+from ._type_match import match_types
+from ..syntax import Operator, Assignment
 
 from .shared import error_logger
 
@@ -12,11 +13,19 @@ from ._helpers_class import get_class_method, get_class_field, get_class_by_name
 from ._helpers_function import get_function
 
 
+class _ContextParams(TypedDict):
+    outermost: bool
+    context_class: ClassDefinitionNode | None
+    is_nonstatic_method: bool
+
+
 def check_arithmetic_expression(
     expression: ASTNode,
     environment: dict[str, TypeNode],
-    **context
+    **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
+    outermost = context.pop("outermost", False)
+
     if isinstance(expression, LiteralNode):
         return _check_primitive_literal(expression, environment, **context)
 
@@ -40,6 +49,9 @@ def check_arithmetic_expression(
 
     elif isinstance(expression, ThisNode):
         return _check_this_literal(expression, environment, **context)
+
+    elif isinstance(expression, AssignmentNode):
+        return _check_assignment(expression, environment, **context, outermost=outermost)
     else:
         error_logger.add(
             expression.location,
@@ -48,10 +60,65 @@ def check_arithmetic_expression(
         return False, None
 
 
+def _check_assignment(
+    expression: AssignmentNode,
+    environment: dict[str, TypeNode],
+    **context: Unpack[_ContextParams]
+):
+    outermost = context.pop("outermost", False)
+    if not outermost:
+        error_logger.add(
+            expression.location,
+            f"Unexpected place for assignment expression"
+        )
+        return False, None
+
+    if not isinstance(expression.left, (IndexNode, IdentifierNode, MemberOperatorNode)):
+        error_logger.add(
+            expression.location,
+            f"Invalid expression to assign into: {expression.left.__class__.__name__}"
+        )
+        return False, None
+
+    valid_left_expr, left_expr_type = check_arithmetic_expression(
+        expression.left, environment, **context
+    )
+    valid_right_expr, right_expr_type = check_arithmetic_expression(
+        expression.right, environment, **context, outermost=outermost
+    )
+
+    if not (valid_left_expr and valid_right_expr):
+        # error is already logged
+        return False, None
+
+    if not match_types(right_expr_type, left_expr_type):
+        error_logger.add(
+            expression.location,
+            f"Type assignment mismatch: {left_expr_type.name} != {right_expr_type.name}"
+        )
+        return False, None
+
+    if left_expr_type.is_reference and expression.operator == Assignment.VALUE_ASSIGNMENT:
+        error_logger.add(
+            expression.location,
+            f"Invalid assignment operator for reference: ':='"
+        )
+        return False, None
+
+    if not left_expr_type.is_reference and expression.operator == Assignment.REFERENCE_ASSIGNMENT:
+        error_logger.add(
+            expression.location,
+            f"Invalid assignment operator for value: '='"
+        )
+        return False, None
+
+    return True, left_expr_type
+
+
 def _check_this_literal(
     expression: ThisNode,
     environment: dict[str, TypeNode],
-    **context
+    **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
     context_class: ClassDefinitionNode | None = context.get("context_class")
     is_nonstatic_method = context.get("is_nonstatic_method", False)
@@ -63,13 +130,17 @@ def _check_this_literal(
             context_class.generic_params,
             *context_class.location
         )
+    error_logger.add(
+        expression.location,
+        f"Invalid context for using this keyword"
+    )
     return False, None
 
 
 def _check_member(
     expression: MemberOperatorNode,
     environment: dict[str, TypeNode],
-    **context
+    **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
     """
     Checks if the MembershipOperatorNode is valid and returns a field
@@ -132,7 +203,7 @@ def _check_member(
 def _check_binary_operator(
     expression: BinaryOperatorNode,
     environment: dict[str, TypeNode],
-    **context
+    **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
     lhs_valid, lhs_type = check_arithmetic_expression(expression.left, environment, **context)
     rhs_valid, rhs_type = check_arithmetic_expression(expression.right, environment, **context)
@@ -322,7 +393,7 @@ def __get_type_of_comparison_binary_operator(
 def _check_unary_operator(
     unary_op_expr: UnaryOperatorNode,
     environment: dict[str, TypeNode],
-    **context
+    **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
     valid_expr, expression_type = check_arithmetic_expression(unary_op_expr.expression, environment, **context)
     operator = unary_op_expr.operator
@@ -447,7 +518,7 @@ def __get_type_of_reference_unary_operator(
 def _get_type_of_identifier(
     expression: IdentifierNode,
     environment: dict[str, TypeNode],
-    **context
+    **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
     maybe_local_var = environment.get(expression.name)
     if maybe_local_var is not None:
@@ -464,7 +535,7 @@ def _get_type_of_identifier(
 def _get_type_of_function_call(
     expression: FunctionCallNode,
     environment: dict[str, TypeNode],
-    **context
+    **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
 
     function_id = expression.identifier
@@ -486,7 +557,7 @@ def _get_type_of_function_call(
 def __get_method_call(
     expression: FunctionCallNode,
     environment: dict[str, TypeNode],
-    **context
+    **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
     function_id = expression.identifier
     valid, class_type_node = check_arithmetic_expression(function_id, environment, **context)
@@ -567,7 +638,7 @@ def __get_method_call(
 def __get_function_call(
     expression: FunctionCallNode,
     environment: dict[str, TypeNode],
-    **context
+    **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
     function_id = expression.identifier
     args_signature = []
@@ -595,7 +666,7 @@ def __get_function_call(
 def _get_type_of_indexation_call(
     expression: IndexNode,
     environment: dict[str, TypeNode],
-    **context
+    **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
     valid_expr, expression_type = check_arithmetic_expression(expression.variable, environment, **context)
 
@@ -674,7 +745,7 @@ def _get_type_of_indexation_call(
 def _check_primitive_literal(
     literal: LiteralNode,
     environment: dict[str, TypeNode],
-    **context
+    **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
     if isinstance(literal, IntegerLiteralNode):
         match literal.size:
@@ -853,7 +924,7 @@ def _check_primitive_literal(
 def __check_keymap_literal(
     arg: KeymapElementNode,
     environment: dict[str, TypeNode],
-    **context
+    **context: Unpack[_ContextParams]
 ) -> tuple[bool, tuple[TypeNode, TypeNode] | None]:
     valid_key, key_type = check_arithmetic_expression(arg.left, environment, **context)
     valid_value, value_type = check_arithmetic_expression(arg.right, environment, **context)

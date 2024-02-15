@@ -4,7 +4,7 @@ from .ast_node import ASTNode
 class VariableDeclarationNode(ASTNode):
     def __init__(
         self,
-        _type: ASTNode,
+        _type: "TypeNode",
         name: str,
         operator: str | None,
         value: ASTNode | None,

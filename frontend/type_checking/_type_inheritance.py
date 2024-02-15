@@ -4,7 +4,6 @@ from ._helpers_class import get_class_by_name
 from ._type_match import strict_match_types
 
 
-# TODO: refactor
 def __check_type_generic_params(
     type_class: TypeNode,
     other_class: TypeNode
@@ -83,7 +82,6 @@ def least_common_base(
                 return cls_name
 
 
-# TODO: ugly code
 def get_superclass_list(
     cls: ClassDefinitionNode | TypeNode | str,
     as_strings: bool = False

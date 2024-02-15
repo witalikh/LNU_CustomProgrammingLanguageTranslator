@@ -3,7 +3,7 @@ from .shared import error_logger, class_definitions, function_definitions
 
 from ._class_entrypoint import validate_all_class_definitions
 from ._functions import validate_all_function_definitions
-
+from ._scope import validate_scope
 
 import sys
 
@@ -29,8 +29,16 @@ def _check_program(program: ProgramNode) -> bool:
     valid_class_defs = validate_all_class_definitions()
     valid_function_defs = validate_all_function_definitions()
 
-    valid_generics = ...
+    valid_main_statements = validate_scope(
+        scope=program,
+        environment={},
+        is_loop=False,
+        is_function=False,
+        is_class=False,
+        expected_return_type=None,
+        current_class=None,
+        is_class_nonstatic_method=False,
+        outermost_function_scope=False
+    )
 
-    valid_main_statements = ...
-
-    return all([valid_class_defs, valid_function_defs, valid_generics, valid_main_statements])
+    return all([valid_class_defs, valid_function_defs, valid_main_statements])

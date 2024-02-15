@@ -1,4 +1,4 @@
-from ..abstract_syntax_tree import TypeNode, FunctionDeclarationNode
+from ..abstract_syntax_tree import TypeNode, FunctionDeclarationNode, FunctionParameter
 from ._type_match import match_types, strict_match_types
 
 from .shared import function_definitions
@@ -49,3 +49,12 @@ def get_function(
         if match_signatures(args_signature, func.parameters_signature):
             return True, func
     return False, None
+
+
+def instantiate_environment_from_function_parameters(
+    params: list[FunctionParameter]
+) -> dict[str, TypeNode]:
+    result = {}
+    for param in params:
+        result[param.parameter_name] = param.type_node
+    return result

@@ -6,6 +6,9 @@ from ._type_validate import validate_type
 
 from ._class_inheritance import validate_class_inheritance
 from ._overloads import validate_overloaded_function_definitions
+from ._scope import validate_scope
+
+from ._helpers_function import instantiate_environment_from_function_parameters
 
 
 def validate_all_class_definitions() -> bool:
@@ -155,7 +158,6 @@ def _flat_check_no_method_collisions(
     return valid
 
 
-# TODO: finish it!!
 def _validate_class_definition(
     concrete_class: ClassDefinitionNode
 ) -> bool:
@@ -200,17 +202,45 @@ def validate_method_definition(
     valid_signature = (
         all((validate_type(param, concrete_class.generic_params) for param in method.parameters_signature))
     )
-    # TODO: implement
-    pass
+    valid_implementation = validate_scope(
+        scope=method.function_body,
+        environment=instantiate_environment_from_function_parameters(method.parameters),
+        is_loop=False,
+        is_function=True,
+        is_class=True,
+        expected_return_type=method.return_type,
+        current_class=concrete_class,
+        is_class_nonstatic_method=True,
+        outermost_function_scope=True,
+    )
+    return all((
+        valid_return_type,
+        valid_signature,
+        valid_implementation
+    ))
 
 
 def validate_static_method_definition(
     concrete_class: ClassDefinitionNode,
     method: ClassMethodDeclarationNode
 ) -> bool:
-    # TODO: implement
     valid_return_type = validate_type(method.return_type, concrete_class.generic_params)
     valid_signature = (
         all((validate_type(param, concrete_class.generic_params) for param in method.parameters_signature))
     )
-    pass
+    valid_implementation = validate_scope(
+        scope=method.function_body,
+        environment=instantiate_environment_from_function_parameters(method.parameters),
+        is_loop=False,
+        is_function=True,
+        is_class=True,
+        expected_return_type=method.return_type,
+        current_class=concrete_class,
+        is_class_nonstatic_method=False,
+        outermost_function_scope=True,
+    )
+    return all((
+        valid_return_type,
+        valid_signature,
+        valid_implementation
+    ))

@@ -745,7 +745,7 @@ class Parser(object):
 
     def _parse_partial_variable_expression(self, type_node: ASTNode, context: ContextFlag)\
             -> VariableDeclarationNode | ClassFieldDeclarationNode:
-        identifier = self.consume(TokenType.IDENTIFIER)
+        identifier: str = self.consume(TokenType.IDENTIFIER)
         line, position = self.line_and_position_of_consumed_token()
 
         if self.is_consumable(TokenType.GENERIC_ASSIGNMENT):
@@ -775,7 +775,7 @@ class Parser(object):
         self.consume(TokenType.END_OF_STATEMENT)
         return result
 
-    def parse_type_declaration(self, context: ContextFlag):
+    def parse_type_declaration(self, context: ContextFlag) -> TypeNode:
         # Check for const or reference modifiers
         modifiers = []
         while self.is_consumable(TokenType.TYPE_MODIFIER):

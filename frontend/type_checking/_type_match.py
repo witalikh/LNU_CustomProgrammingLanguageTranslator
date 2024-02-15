@@ -58,7 +58,7 @@ def match_types(
 
         # non-basic cases: implicit cast
         if current_type_name == TypeEnum.BYTE:
-            return target_type in (
+            return target_type.name in (
                 TypeEnum.SHORT_INTEGER,
                 TypeEnum.INTEGER,
                 TypeEnum.LONG_INTEGER,
@@ -68,7 +68,7 @@ def match_types(
                 TypeEnum.COMPLEX
             )
         elif current_type_name == TypeEnum.SHORT_INTEGER:
-            return target_type in (
+            return target_type.name in (
                 TypeEnum.INTEGER,
                 TypeEnum.LONG_INTEGER,
                 TypeEnum.EXTENDED_INTEGER,
@@ -77,7 +77,7 @@ def match_types(
                 TypeEnum.COMPLEX
             )
         elif current_type_name == TypeEnum.INTEGER:
-            return target_type in (
+            return target_type.name in (
                 TypeEnum.LONG_INTEGER,
                 TypeEnum.EXTENDED_INTEGER,
                 TypeEnum.FLOAT,
@@ -85,18 +85,18 @@ def match_types(
                 TypeEnum.COMPLEX
             )
         elif current_type_name == TypeEnum.LONG_INTEGER:
-            return target_type in (
+            return target_type.name in (
                 TypeEnum.EXTENDED_INTEGER,
                 TypeEnum.DOUBLE,
                 TypeEnum.COMPLEX,
             )
         elif current_type_name == TypeEnum.FLOAT:
-            return target_type in (
+            return target_type.name in (
                 TypeEnum.DOUBLE,
                 TypeEnum.COMPLEX
             )
         elif current_type_name == TypeEnum.DOUBLE:
-            return target_type in (
+            return target_type.name in (
                 TypeEnum.COMPLEX,
             )
 

@@ -122,21 +122,22 @@ Main();
 def scenario_4():
     code_example = (r"""
     
-    class my_class[T] from x[integer]{
+    class my_class{
         public integer x;
         
-        public static function[my_class] operator + (my_class x, T y){
-            this.x := y;
+        public static function[my_class] operator + (my_class x, integer y){
+            x.xy := y;
         }
     }
      
-    const reference my_class[integers[x, const integer]] x = new my_class[integers[x]]("Hello");
-    x[5] := 4;
-    array[integer, 6] x = [1, 2, 3, 4];
-    integer z := 7738;
-    # x(4);
+    my_class xr;
+    xr[5];
+    xr := xr + 1;
     
-    x[y[5]];
+    # xr := new my_class[integer]("Hello");
+    array[integer, 6] x := [1, 2, 3, 4];
+    integer z := 7738;
+    z := 8925.2;
     """)
 
     lexer = Lexer(RULES)

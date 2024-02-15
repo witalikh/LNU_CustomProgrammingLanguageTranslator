@@ -1,16 +1,11 @@
 from ..abstract_syntax_tree import *
-from .shared import error_logger, class_definitions, function_definitions
+from .shared import function_definitions
 
 from ._overloads import validate_overloaded_function_definitions
+from ._scope import validate_scope
 
-
+from ._helpers_function import instantiate_environment_from_function_parameters
 from ._type_validate import validate_type
-
-
-def initialize_variables_environment_from_parameters(
-    parameters: list[FunctionParameter]
-) -> dict[str, TypeNode]:
-    pass
 
 
 def validate_all_function_definitions() -> bool:
@@ -40,12 +35,39 @@ def _validate_function_definition(
     """
     valid_signature = _validate_function_signature(function_node)
 
-    # TODO: function generics
-    # valid_generics = validate_generics(function_node)
+    if function_node.external_to:
+        concrete_class = function_node.external_to
+        valid_return_type = validate_type(function_node.return_type, concrete_class.generic_params)
+        valid_implementation = validate_scope(
+            scope=function_node.function_body,
+            environment=instantiate_environment_from_function_parameters(function_node.parameters),
+            is_loop=False,
+            is_function=True,
+            is_class=False,
+            expected_return_type=function_node.return_type,
+            current_class=concrete_class,
+            is_class_nonstatic_method=False,
+            outermost_function_scope=True,
+        )
+    else:
+        valid_return_type = validate_type(function_node.return_type)
+        valid_implementation = validate_scope(
+            scope=function_node.function_body,
+            environment=instantiate_environment_from_function_parameters(function_node.parameters),
+            is_loop=False,
+            is_function=True,
+            is_class=False,
+            expected_return_type=function_node.return_type,
+            current_class=None,
+            is_class_nonstatic_method=False,
+            outermost_function_scope=True,
+        )
 
-    # valid_block,
-
-    return_type = function_node.return_type
+    return all((
+        valid_return_type,
+        valid_signature,
+        valid_implementation
+    ))
 
 
 def _validate_function_signature(
