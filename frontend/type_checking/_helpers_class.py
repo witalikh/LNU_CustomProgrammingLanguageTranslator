@@ -24,13 +24,18 @@ def get_class_by_name(
 
 
 def get_class_method(
-    class_name: str,
+    _class: str | ClassDefinitionNode,
     method_name: str,
     type_signature: list[TypeNode],
     is_static: bool = False,
 ) -> ClassMethodDeclarationNode | None:
-    class_instance = get_class_by_name(class_name)
-    if class_instance is None:
+    if isinstance(_class, str):
+        class_instance = get_class_by_name(_class)
+        if class_instance is None:
+            return None
+    elif isinstance(_class, ClassDefinitionNode):
+        class_instance = _class
+    else:
         return None
 
     look_methods_in = class_instance.methods_definitions if not is_static else class_instance.static_methods_definitions
@@ -44,11 +49,19 @@ def get_class_method(
 
 
 def get_class_field(
-    class_name: str,
+    _class: str | ClassDefinitionNode,
     field_name: str,
 ) -> ClassFieldDeclarationNode | None:
-    class_instance = get_class_by_name(class_name)
-    if class_instance is None:
+
+    if isinstance(_class, str):
+        class_instance = get_class_by_name(_class)
+        if class_instance is None:
+            return None
+
+    elif isinstance(_class, ClassDefinitionNode):
+        class_instance = _class
+
+    else:
         return None
 
     for field in class_instance.all_fields_definitions:
@@ -58,35 +71,16 @@ def get_class_field(
     return None
 
 
-def get_class_method_type(
-    class_name: str,
-    method_name: str,
-    type_signature: list[TypeNode],
+def instantiate_generic_type(
+    possibly_generic_type: TypeNode,
+    class_instance: ClassDefinitionNode,
     generic_args: list[TypeNode] | None = None,
-    is_static: bool = False,
 ) -> tuple[bool, TypeNode | None]:
-    class_instance = get_class_by_name(class_name)
-    if class_instance is None:
-        return False, None
-
-    look_methods_in = class_instance.methods_definitions if not is_static else class_instance.static_methods_definitions
-    method = None
-    for class_method in look_methods_in:
-        if class_method.function_name != method_name:
-            continue
-
-        if match_signatures(type_signature, class_method.parameters_signature):
-            method = class_method
-            break
-    if method is None:
-        return False, None
-
-    ret_type = method.return_type
-    if ret_type.represents_generic_param:
+    if possibly_generic_type.represents_generic_param:
         for generic, actual in zip(class_instance.generic_params, generic_args):
-            if generic.name == ret_type.name:
+            if generic.name == possibly_generic_type.name:
                 return True, actual
         else:
             return False, None
     else:
-        return True, ret_type
+        return True, possibly_generic_type

@@ -214,6 +214,8 @@ class Parser(object):
                         lambda node: not isinstance(node, FunctionDeclarationNode), statement.static_methods_definitions
                     )
                 )
+                for overload in operator_overloads:
+                    overload.external_to = statement
                 statement.static_methods_definitions = other_static
                 function_definitions.extend(operator_overloads)
                 class_definitions.append(statement)

@@ -19,6 +19,10 @@ def match_signatures(args_signature: list[TypeNode], function_signature: list[Ty
         return False
 
     for arg, param in zip(args_signature, function_signature):
+        # TODO: check!!
+        if param.represents_generic_param:
+            continue
+
         if not match_types(arg, param):
             return False
     return True

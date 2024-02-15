@@ -51,7 +51,10 @@ def _validate_function_definition(
 def _validate_function_signature(
     function_node: FunctionDeclarationNode
 ) -> bool:
+    generics_context = None
+    if isinstance(function_node.external_to, ClassDefinitionNode):
+        generics_context = function_node.external_to.generic_params
     return all((
         validate_type(function_node.return_type),
-        all((validate_type(x) for x in function_node.parameters_signature)),
+        all((validate_type(x, generics_context) for x in function_node.parameters_signature)),
     ))

@@ -20,6 +20,9 @@ class FunctionDeclarationNode(ASTNode):
         self.parameters = parameters
         self.function_body = function_body
 
+        # makes sense to operators overload
+        self.external_to = None
+
         self.has_overloads = False
         self._usages = 0
 
@@ -46,6 +49,7 @@ class FunctionParameter(ASTNode):
         self.type_node = type_node
         self.parameter_name = parameter_name
         self.default_value = default_value
+
 
 class FunctionCallNode(CalculationNode):
     def __init__(

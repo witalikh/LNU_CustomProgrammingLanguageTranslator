@@ -8,52 +8,82 @@ from ..syntax import Operator
 
 from .shared import error_logger
 
-from ._helpers_class import get_class_method_type, get_class_field
+from ._helpers_class import get_class_method, get_class_field, get_class_by_name, instantiate_generic_type
 from ._helpers_function import get_function
 
 
-# TODO: Nones
 def check_arithmetic_expression(
     expression: ASTNode,
-    environment: dict[str, TypeNode]
+    environment: dict[str, TypeNode],
+    **context
 ) -> Tuple[bool, Union[TypeNode, None]]:
     if isinstance(expression, LiteralNode):
-        return _check_primitive_literal(expression, environment)
+        return _check_primitive_literal(expression, environment, **context)
 
     elif isinstance(expression, BinaryOperatorNode):
-        return _get_type_of_binary_operator(expression, environment)
+        return _check_binary_operator(expression, environment, **context)
 
     elif isinstance(expression, UnaryOperatorNode):
-        return _get_type_of_unary_operator(expression, environment)
+        return _check_unary_operator(expression, environment, **context)
 
     elif isinstance(expression, MemberOperatorNode):
-        return _get_type_of_member(expression, environment)
+        return _check_member(expression, environment, **context)
 
     elif isinstance(expression, FunctionCallNode):
-        return _get_type_of_function_call(expression, environment)
+        return _get_type_of_function_call(expression, environment, **context)
 
     elif isinstance(expression, IndexNode):
-        return _get_type_of_indexation_call(expression, environment)
+        return _get_type_of_indexation_call(expression, environment, **context)
 
     elif isinstance(expression, IdentifierNode):
-        return _get_type_of_identifier(expression, environment)
+        return _get_type_of_identifier(expression, environment, **context)
 
-    elif isinstance(expression, KeymapElementNode):
-        pass
+    elif isinstance(expression, ThisNode):
+        return _check_this_literal(expression, environment, **context)
+    else:
+        error_logger.add(
+            expression.location,
+            f"Unexpected expression"
+        )
+        return False, None
 
 
-def _get_type_of_member(
-    expression: MemberOperatorNode,
-    environment: dict[str, TypeNode]
+def _check_this_literal(
+    expression: ThisNode,
+    environment: dict[str, TypeNode],
+    **context
 ) -> Tuple[bool, Union[TypeNode, None]]:
+    context_class: ClassDefinitionNode | None = context.get("context_class")
+    is_nonstatic_method = context.get("is_nonstatic_method", False)
 
+    if context_class and is_nonstatic_method:
+        return True, TypeNode(
+            TypeCategory.CLASS if not context_class.generic_params else TypeCategory.GENERIC_CLASS,
+            IdentifierNode(context_class.name, *context_class.location),
+            context_class.generic_params,
+            *context_class.location
+        )
+    return False, None
+
+
+def _check_member(
+    expression: MemberOperatorNode,
+    environment: dict[str, TypeNode],
+    **context
+) -> Tuple[bool, Union[TypeNode, None]]:
+    """
+    Checks if the MembershipOperatorNode is valid and returns a field
+    :param expression:
+    :param environment:
+    :return:
+    """
     # right operand of membership operator should be parsed as identifier no matter what
     if not isinstance(expression.right, IdentifierNode):
-        return False, None
+        raise AssertionError(f"Unexpected expression: {expression.right.__class__.__name__}")
 
     member_name = expression.right.name
     operator = expression.operator
-    valid, class_type = check_arithmetic_expression(expression.left, environment)
+    valid, class_type = check_arithmetic_expression(expression.left, environment, **context)
 
     if not valid:
         # error is logged by this point
@@ -66,8 +96,12 @@ def _get_type_of_member(
         )
         return False, None
 
-    class_field = get_class_field(
-        class_type.name,
+    class_instance = get_class_by_name(
+        class_type.name
+    )
+
+    class_field: ClassFieldDeclarationNode = get_class_field(
+        class_instance,
         member_name
     )
 
@@ -78,17 +112,30 @@ def _get_type_of_member(
         )
         return False, None
 
+    is_valid, return_type = instantiate_generic_type(
+        class_field.type,
+        class_instance,
+        class_type.arguments
+    )
+
+    if not is_valid:
+        error_logger.add(
+            expression.location,
+            f"Invalid return type"
+        )
+        return False, None
+
     class_field.use()
-    return True, class_field.type
+    return True, return_type
 
 
-def _get_type_of_binary_operator(
+def _check_binary_operator(
     expression: BinaryOperatorNode,
-    environment: dict[str, TypeNode]
+    environment: dict[str, TypeNode],
+    **context
 ) -> Tuple[bool, Union[TypeNode, None]]:
-
-    lhs_valid, lhs_type = check_arithmetic_expression(expression.left, environment)
-    rhs_valid, rhs_type = check_arithmetic_expression(expression.right, environment)
+    lhs_valid, lhs_type = check_arithmetic_expression(expression.left, environment, **context)
+    rhs_valid, rhs_type = check_arithmetic_expression(expression.right, environment, **context)
     operator = expression.operator
 
     if not (lhs_valid and rhs_valid):
@@ -110,7 +157,7 @@ def _get_type_of_binary_operator(
             return False, None
         return True, expression.right
     elif expression.is_coalesce:
-        return check_arithmetic_expression(expression.left, environment)
+        return check_arithmetic_expression(expression.left, environment, **context)
     else:
         error_logger.add(
             expression.location,
@@ -144,7 +191,29 @@ def ___get_type_of_overloaded_operator(
         )
         return False, None
 
-    return True, function_node.return_type
+    if not isinstance(function_node.external_to, ClassDefinitionNode):
+        error_logger.add(
+            location,
+            f"Operator overload is not associated to some class"
+        )
+        return False, None
+
+    # TODO: support operator overloading for generics
+    # TODO: deduce generic args
+    is_valid, return_type = instantiate_generic_type(
+        function_node.return_type,
+        function_node.external_to,
+        []
+    )
+
+    if not is_valid:
+        error_logger.add(
+            location,
+            f"Failed to deduce return type for operator overload"
+        )
+        return False, None
+
+    return True, return_type
 
 
 def __get_type_of_arithmetic_binary_operator(
@@ -250,11 +319,12 @@ def __get_type_of_comparison_binary_operator(
         return ___get_type_of_overloaded_operator([lhs_type, rhs_type], operator, location)
 
 
-def _get_type_of_unary_operator(
+def _check_unary_operator(
     unary_op_expr: UnaryOperatorNode,
-    environment: dict[str, TypeNode]
+    environment: dict[str, TypeNode],
+    **context
 ) -> Tuple[bool, Union[TypeNode, None]]:
-    valid_expr, expression_type = check_arithmetic_expression(unary_op_expr.expression, environment)
+    valid_expr, expression_type = check_arithmetic_expression(unary_op_expr.expression, environment, **context)
     operator = unary_op_expr.operator
     if unary_op_expr.is_arithmetic:
         return __get_type_of_arithmetic_unary_operator(expression_type, operator, unary_op_expr.location)
@@ -376,7 +446,8 @@ def __get_type_of_reference_unary_operator(
 
 def _get_type_of_identifier(
     expression: IdentifierNode,
-    environment: dict[str, TypeNode]
+    environment: dict[str, TypeNode],
+    **context
 ) -> Tuple[bool, Union[TypeNode, None]]:
     maybe_local_var = environment.get(expression.name)
     if maybe_local_var is not None:
@@ -392,86 +463,16 @@ def _get_type_of_identifier(
 
 def _get_type_of_function_call(
     expression: FunctionCallNode,
-    environment: dict[str, TypeNode]
+    environment: dict[str, TypeNode],
+    **context
 ) -> Tuple[bool, Union[TypeNode, None]]:
 
     function_id = expression.identifier
     if isinstance(function_id, MemberOperatorNode):
-        valid, class_type_node = check_arithmetic_expression(function_id, environment)
-        if not valid:
-            # error is already logged
-            return False, None
-
-        if class_type_node is None:
-            error_logger.add(
-                expression.location,
-                f"Invalid expression for method call"
-            )
-            return False, None
-
-        if not isinstance(class_type_node, TypeNode):
-            error_logger.add(
-                expression.location,
-                f"Invalid expression for method call"
-            )
-            return False, None
-
-        potentially_method_name = function_id.right
-        if not isinstance(potentially_method_name, IdentifierNode):
-            error_logger.add(
-                expression.location,
-                f"Invalid expression for method name: {type(potentially_method_name).__name__}"
-            )
-            return False, None
-
-        if class_type_node.category not in (TypeCategory.CLASS, TypeCategory.GENERIC_CLASS):
-            error_logger.add(
-                expression.location,
-                f"Invalid type: {class_type_node.type}"
-            )
-            return False, None
-
-        args_signature = []
-        for arg in expression.arguments:
-            valid_arg, arg_type = check_arithmetic_expression(arg, environment)
-            if not valid_arg:
-                # error is already logged
-                return False, None
-            args_signature.append(arg_type)
-
-        # TODO: usage track !!!
-        is_valid, class_method_return_type = get_class_method_type(
-            class_type_node.name,
-            potentially_method_name.name,
-            args_signature, class_type_node.arguments)
-
-        if not is_valid:
-            # error is already logged
-            return False, None
-
-        return True, class_method_return_type
+        return __get_method_call(expression, environment, **context)
 
     elif isinstance(function_id, IdentifierNode):
-        args_signature = []
-        for arg in expression.arguments:
-            valid_arg, arg_type = check_arithmetic_expression(arg, environment)
-            if not valid_arg:
-                # error is already logged
-                return False, None
-            args_signature.append(arg_type)
-
-        is_valid, function_node = get_function(function_id.name, args_signature)
-
-        if not is_valid or function_node is None:
-            error_logger.add(
-                expression.location,
-                f"Invalid function: {function_id.name}"
-            )
-            return False, None
-
-        expression.function = function_node
-        function_node.use()
-        return True, function_node.return_type
+        return __get_function_call(expression, environment, **context)
 
     # Assume no static, functors etc
     else:
@@ -482,29 +483,198 @@ def _get_type_of_function_call(
         return False, None
 
 
+def __get_method_call(
+    expression: FunctionCallNode,
+    environment: dict[str, TypeNode],
+    **context
+) -> Tuple[bool, Union[TypeNode, None]]:
+    function_id = expression.identifier
+    valid, class_type_node = check_arithmetic_expression(function_id, environment, **context)
+    if not valid:
+        # error is already logged
+        return False, None
+
+    if class_type_node is None:
+        error_logger.add(
+            expression.location,
+            f"Invalid expression for method call"
+        )
+        return False, None
+
+    if not isinstance(class_type_node, TypeNode):
+        error_logger.add(
+            expression.location,
+            f"Invalid expression for method call"
+        )
+        return False, None
+
+    potentially_method_name = function_id.right
+    if not isinstance(potentially_method_name, IdentifierNode):
+        error_logger.add(
+            expression.location,
+            f"Invalid expression for method name: {type(potentially_method_name).__name__}"
+        )
+        return False, None
+
+    if class_type_node.category not in (TypeCategory.CLASS, TypeCategory.GENERIC_CLASS):
+        error_logger.add(
+            expression.location,
+            f"Invalid type: {class_type_node.type}"
+        )
+        return False, None
+
+    args_signature = []
+    for arg in expression.arguments:
+        valid_arg, arg_type = check_arithmetic_expression(arg, environment, **context)
+        if not valid_arg:
+            # error is already logged
+            return False, None
+        args_signature.append(arg_type)
+
+    class_instance = get_class_by_name(
+        class_type_node.name
+    )
+
+    class_method = get_class_method(
+        class_instance,
+        potentially_method_name.name,
+        args_signature)
+
+    if not class_method:
+        error_logger.add(
+            expression.location,
+            f"Invalid type: method {potentially_method_name.name} doesn't exist"
+        )
+        return False, None
+
+    is_valid, return_type = instantiate_generic_type(
+        class_method.return_type,
+        class_instance,
+        class_type_node.arguments
+    )
+    if not is_valid:
+        error_logger.add(
+            expression.location,
+            f"Invalid return type"
+        )
+        return False, None
+
+    expression.function = class_method
+    class_method.use()
+    return True, return_type
+
+
+def __get_function_call(
+    expression: FunctionCallNode,
+    environment: dict[str, TypeNode],
+    **context
+) -> Tuple[bool, Union[TypeNode, None]]:
+    function_id = expression.identifier
+    args_signature = []
+    for arg in expression.arguments:
+        valid_arg, arg_type = check_arithmetic_expression(arg, environment, **context)
+        if not valid_arg:
+            # error is already logged
+            return False, None
+        args_signature.append(arg_type)
+
+    is_valid, function_node = get_function(function_id.name, args_signature)
+
+    if not is_valid or function_node is None:
+        error_logger.add(
+            expression.location,
+            f"Invalid function: {function_id.name}"
+        )
+        return False, None
+
+    expression.function = function_node
+    function_node.use()
+    return True, function_node.return_type
+
+
 def _get_type_of_indexation_call(
     expression: IndexNode,
-    environment: dict[str, TypeNode]
+    environment: dict[str, TypeNode],
+    **context
 ) -> Tuple[bool, Union[TypeNode, None]]:
-    valid_expr, expression_type = check_arithmetic_expression(expression.variable, environment)
+    valid_expr, expression_type = check_arithmetic_expression(expression.variable, environment, **context)
 
-    if expression_type is None:
+    if not valid_expr:
+        # error is already logged
         return False, None
 
     if expression_type.category == TypeCategory.PRIMITIVE:
+        error_logger.add(
+            expression.location,
+            f"Invalid type: {expression_type.name}"
+        )
         return False, None
 
-    if expression_type.category == TypeCategory.COLLECTION:
-        pass
+    elif expression_type.category == TypeCategory.COLLECTION:
+        if expression_type.name not in (TypeEnum.ARRAY, TypeEnum.KEYMAP):
+            error_logger.add(
+                expression.location,
+                f"Invalid type: {expression_type.name}"
+            )
+            return False, None
 
-    # TODO: implement
-    return False, None
-    # return environment.get(expression.name)
+    argument_signature = [expression_type]
+    for arg in expression.arguments:
+        valid, arg_type = check_arithmetic_expression(arg, environment, **context)
+        if not valid:
+            error_logger.add(
+                arg.location,
+                f"Invalid expression"
+            )
+            return False, None
+        argument_signature.append(arg_type)
+
+    if expression_type.category == TypeCategory.COLLECTION:
+
+        if not expression_type.arguments:
+            error_logger.add(
+                expression.location,
+                "Invalid collection: no containing type provided"
+            )
+            return False, None
+
+        if len(argument_signature) == 0:
+            error_logger.add(
+                expression.location,
+                "No argument provided for collection type"
+            )
+        if len(argument_signature) > 1:
+            error_logger.add(
+                expression.location,
+                "Too many arguments for collection type"
+            )
+        if expression_type.name == TypeEnum.ARRAY:
+            cpt = common_primitive_type(argument_signature[1].name, TypeEnum.INTEGER)
+            if not cpt or cpt != TypeEnum.INTEGER:
+                error_logger.add(
+                    "Non-integer type argument provided for array type in index"
+                )
+                return False, None
+
+            return True, expression_type.arguments[0]
+
+        else:
+            cpt = common_primitive_type(argument_signature[1].name, expression_type.arguments[0].name)
+            if not cpt:
+                error_logger.add(
+                    "Incompatible type argument provided for keymap type in index"
+                )
+                return False, None
+
+            return True, expression_type.arguments[1]
+    else:
+        return ___get_type_of_overloaded_operator(argument_signature, "index", expression.location)
 
 
 def _check_primitive_literal(
     literal: LiteralNode,
-    environment: dict[str, TypeNode]
+    environment: dict[str, TypeNode],
+    **context
 ) -> Tuple[bool, Union[TypeNode, None]]:
     if isinstance(literal, IntegerLiteralNode):
         match literal.size:
@@ -605,7 +775,7 @@ def _check_primitive_literal(
     elif isinstance(literal, ListLiteralNode):
         elements: list[TypeNode] = []
         for arg in literal.elements:
-            valid_arg, arg_type = check_arithmetic_expression(arg, environment)
+            valid_arg, arg_type = check_arithmetic_expression(arg, environment, **context)
             if not valid_arg:
                 # error is already logged
                 return False, None
@@ -637,7 +807,7 @@ def _check_primitive_literal(
     elif isinstance(literal, KeymapLiteralNode):
         elements: list[tuple[TypeNode, TypeNode]] = []
         for arg in literal.elements:
-            valid_arg, arg_type = __check_keymap_literal(arg, environment)
+            valid_arg, arg_type = __check_keymap_literal(arg, environment, **context)
             if not valid_arg:
                 # error is already logged
                 return False, None
@@ -682,10 +852,11 @@ def _check_primitive_literal(
 
 def __check_keymap_literal(
     arg: KeymapElementNode,
-    environment: dict[str, TypeNode]
+    environment: dict[str, TypeNode],
+    **context
 ) -> tuple[bool, tuple[TypeNode, TypeNode] | None]:
-    valid_key, key_type = check_arithmetic_expression(arg.left, environment)
-    valid_value, value_type = check_arithmetic_expression(arg.right, environment)
+    valid_key, key_type = check_arithmetic_expression(arg.left, environment, **context)
+    valid_value, value_type = check_arithmetic_expression(arg.right, environment, **context)
 
     if not valid_key or not valid_value:
         return False, None
