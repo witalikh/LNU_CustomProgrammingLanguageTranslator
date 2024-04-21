@@ -11,7 +11,7 @@ from ._type_match import strict_match_types
 def __check_type_generic_params(
     type_class: TypeNode,
     other_class: TypeNode
-):
+) -> bool:
     """
     Checks if the TypeNodes have the same instantiated generic parameters
     without any implicit casts possible
@@ -34,7 +34,7 @@ def __check_type_generic_params(
             return False
 
         # check if different signatures
-        return not any((not strict_match_types(x, y) for x, y in zip(type_class.arguments, other_class.arguments)))
+        return not any((not strict_match_types(current_type=x, target_type=y) for x, y in zip(type_class.arguments, other_class.arguments)))
 
     elif type_class.category == TypeCategory.CLASS:
         # instantiated generics (actually, it's code bug)
@@ -63,13 +63,13 @@ def least_common_base(
         if len(cls.generic_params) != len(other.generic_params):
             return None
     elif isinstance(other, TypeNode) and isinstance(cls, TypeNode):
-        if not __check_type_generic_params(cls, other):
+        if not __check_type_generic_params(type_class=cls, other_class=other):
             return None
     else:
         raise AssertionError("Invalid use: should be a ClassDefinitionNode or TypeNode and equal type args")
 
-    cls_inheritance_tree = get_superclass_list(cls, as_strings=True)
-    other_inheritance_tree = get_superclass_list(other, as_strings=True)
+    cls_inheritance_tree = get_superclass_list(cls=cls, as_strings=True)
+    other_inheritance_tree = get_superclass_list(cls=other, as_strings=True)
 
     # one of classes doesn't even exist :/
     if cls_inheritance_tree is None or other_inheritance_tree is None:
@@ -97,9 +97,9 @@ def get_superclass_list(
     :return: list of superclasses (including self), or empty if class is invalid
     """
     if isinstance(cls, TypeNode):
-        cls_node = get_class_by_name(cls.name)
+        cls_node = get_class_by_name(class_name=cls.name)
     elif isinstance(cls, str):
-        cls_node = get_class_by_name(cls)
+        cls_node = get_class_by_name(class_name=cls)
     else:
         cls_node = cls
 
@@ -114,7 +114,7 @@ def get_superclass_list(
     tree = [curr_class_node.name if as_strings else curr_class_node]
 
     while curr_class_node.superclass is not None and _loop_iterations < _while_loop_limiter:
-        curr_class_node = get_class_by_name(curr_class_node.superclass.name)
+        curr_class_node = get_class_by_name(class_name=curr_class_node.superclass.name)
         if as_strings:
             tree.append(curr_class_node.name)
         else:
@@ -128,7 +128,7 @@ def is_class_type_subtype_of(
     other: TypeNode,
 ) -> bool:
     if isinstance(other, ClassDefinitionNode) and isinstance(cls, ClassDefinitionNode):
-        return __is_subclass_of(cls, other)
+        return __is_subclass_of(cls_node=cls, other_node=other)
     elif not (isinstance(other, TypeNode) and isinstance(cls, TypeNode)):
         raise AssertionError("Invalid use: should be a ClassDefinitionNode or TypeNode and equal type args")
 
@@ -138,12 +138,12 @@ def is_class_type_subtype_of(
     ):
         return False
 
-    if not __check_type_generic_params(cls, other):
+    if not __check_type_generic_params(type_class=cls, other_class=other):
         return False
 
     # get class instances
-    class_instance = get_class_by_name(cls.name)
-    other_instance = get_class_by_name(other.name)
+    class_instance = get_class_by_name(class_name=cls.name)
+    other_instance = get_class_by_name(class_name=other.name)
 
     # check if generics args count match
     if not (
@@ -153,14 +153,14 @@ def is_class_type_subtype_of(
 
     # check inheritance
     return __is_subclass_of(
-        class_instance, other_instance
+        cls_node=class_instance, other_node=other_instance
     )
 
 
 def __is_subclass_of(
     cls_node: ClassDefinitionNode,
     other_node: ClassDefinitionNode
-):
+) -> bool:
     """
     (Private)
     Checks two ClassDefinitionNode instances if first is subclass of the second
@@ -179,7 +179,7 @@ def __is_subclass_of(
     __while_loop_limiter = 100
     curr_class_node = cls_node
     while curr_class_node.superclass is not None and __loop_iterations < __while_loop_limiter:
-        curr_class_node = get_class_by_name(curr_class_node.superclass.name)
+        curr_class_node = get_class_by_name(class_name=curr_class_node.superclass.name)
         if curr_class_node is None:
             return False
 

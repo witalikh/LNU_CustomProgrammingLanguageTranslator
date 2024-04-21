@@ -24,7 +24,7 @@ def validate_overloaded_function_definitions(
         return True
 
     overload_validations = [
-        _validate_overloaded_function_name(definitions, function_name)
+        _validate_overloaded_function_name(definitions=definitions, function_name=function_name)
         for function_name in overloads
     ]
     return all(overload_validations)
@@ -33,8 +33,8 @@ def validate_overloaded_function_definitions(
 def _validate_overloaded_function_name(
     definitions: list[FunctionDeclarationNode | ClassMethodDeclarationNode],
     function_name: str
-):
-    overloaded_functions = []
+) -> bool:
+    overloaded_functions: list[FunctionDeclarationNode] = []
 
     for function in definitions:
         if function.function_name != function_name:
@@ -46,13 +46,13 @@ def _validate_overloaded_function_name(
     for i in range(len(overloaded_functions)):
         for j in range(i + 1, len(overloaded_functions)):
             if match_signatures(
-                overloaded_functions[i].parameters_signature,
-                overloaded_functions[j].parameters_signature
+                args_signature=overloaded_functions[i].parameters_signature,
+                function_signature=overloaded_functions[j].parameters_signature
             ):
                 has_no_duplicate_definitions = False
                 error_logger.add(
-                    overloaded_functions[i],
-                    f"Multiple overloads for function {function_name} with same signature"
+                    location=overloaded_functions[i],
+                    reason=f"Multiple overloads for function {function_name} with same signature"
                     f"{overloaded_functions[i].parameters_signature} found"
                 )
 

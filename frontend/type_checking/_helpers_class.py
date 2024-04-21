@@ -29,7 +29,7 @@ def get_class_method(
     is_static: bool = False,
 ) -> ClassMethodDeclarationNode | None:
     if isinstance(_class, str):
-        class_instance = get_class_by_name(_class)
+        class_instance = get_class_by_name(class_name=_class)
         if class_instance is None:
             return None
     elif isinstance(_class, ClassDefinitionNode):
@@ -42,7 +42,7 @@ def get_class_method(
         if class_method.function_name != method_name:
             continue
 
-        if match_signatures(type_signature, class_method.parameters_signature):
+        if match_signatures(args_signature=type_signature, function_signature=class_method.parameters_signature):
             return class_method
     return None
 
