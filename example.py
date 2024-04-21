@@ -7,39 +7,44 @@ from frontend.parser import Parser
 from frontend.type_checking.entrypoint import type_check_program
 
 
-def scenario_1():
-    code_example = ("""
-    const integer number := 3.1415;
-    array[string] my_str := ["Hello", "World"];
-    
-    if (number == 3.13){
-        print(number);
-        print(my_str[-1]);
+def scenario_1() -> None:
+    code_example = (r"""
+    const integer PI := 3.1415;
+    function[integer] circleArea(integer radius){
+        # Handle specific user inputs as zeros for sake of simplicity
+        if (radius <= 0) { return 0; }
+        return PI * r ** 2;
     }
+
+    string x;
+    input(reference x);
+    print("The circle area is: \n")
+    print(circleArea(integerFromString(x)));
+
     """)
 
     lexer = Lexer(RULES)
     lexemes = lexer.scan(code_example)
     for lexeme in lexemes:
-        print(lexeme)
+        print(f'\033[95m<\033[0m\033[93m{lexeme.type}\033[0m   \033[94m{lexeme.value}\033[0m \033[95m>\033[0m')
 
 
-def scenario_2():
+def scenario_2() -> None:
     # -3**5 - (2 + 2) * 2 / (3 -4) + 3*5**2
     # -3 * -5 ** 2 + func(1, 2, 3, "Lol", `\xA0\xF3`, "(]}{}\r", true, false, null, undefined) [111, 0]
     # (func(a+b*c, b) + 3 << 5 | 4) <= 19 + 5
 
-    code_example = (r"""   
+    code_example = (r"""
     function[float] ff() {
         return 3.141592653589793;
     }
-    
+
     function[integer] some_func(custom_class[integer, 4] f := 1, integer x) {
         const reference custom_class[integer, 1, my_array[array[integer, 3], 5]] z = new Custom_Class();
         integer y := 123 + 5 % 7 ** 5;
         return 2 * x ** 2 % 3;
     }
-    
+
     integer i := 0;
     while (4 < i <= 5) {
         print(some_func(3 * i + 1));
@@ -57,20 +62,20 @@ def scenario_2():
     print(type_check_program(x))
 
 
-def scenario_3():
+def scenario_3() -> None:
     code_example = (r"""
     function bubble_sort(reference array[float, ?] arr)
 {
     # culprit is here
     integer array_length := arr->length();
-    
+
     integer i := 0;
     while (i < array_length)
     {
         integer j := 0;
         float buffer;
         boolean swapped := false;
-        
+
         while (j < array_length - 1 - i) {
             if (arr[j] > arr[j+1]) {
                 buffer := arr[j];
@@ -85,17 +90,16 @@ def scenario_3():
         }
         i := i + 1;
     }
-} 
+}
 
 function[float] sum_of_elements(const reference array[float, ?] arr)
 {
     integer length := arr->length();
     float _sum := 0;
-    
     integer i := 0;
     while (i < length) {
         _sum := _sum + arr[i];
-        i := i + 1; 
+        i := i + 1;
     }
     return _sum;
 }
@@ -121,33 +125,30 @@ Main();
 
 def scenario_4():
     code_example = (r"""
-    
     class my_class{
         public integer x;
-        
         public static function[my_class] operator + (my_class x, integer y){
-            x.xy := y;
+            x.x := y;
         }
     }
-     
     my_class xr;
-    xr[5];
+    # xr[5];
     xr := xr + 1;
-    
+
     # xr := new my_class[integer]("Hello");
-    array[integer, 6] x := [1, 2, 3, 4];
+    array[integer] yyyx := [1, 2, 3, 4];
     integer z := 7738;
-    z := 8925.2;
+    # z := 8925.2;
     """)
 
     lexer = Lexer(RULES)
     lexemes_iter = lexer.scan(code_example)
-    # print(*lexemes, sep="\n")
 
     parser = Parser(lexemes_iter)
     x = parser.parse()
-    print(x)
     print(type_check_program(x))
+    print("Entire program valid:", x.is_valid())
+    # print(x)
 
 
 if __name__ == '__main__':

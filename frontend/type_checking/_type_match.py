@@ -1,7 +1,5 @@
-from ..abstract_syntax_tree import *
+from ..abstract_syntax_tree import TypeCategory, TypeNode, GenericParameterNode
 from ..semantics import TypeEnum
-
-from .shared import error_logger, class_definitions, function_definitions
 
 
 def match_types(
@@ -104,8 +102,6 @@ def match_types(
             return False
 
     elif current_type.category == TypeCategory.COLLECTION:
-
-        # TODO: list literal might be suitable for array, set and list
         # case 1: literal
         if current_type.is_literal and current_type_name == TypeEnum.ARRAY:
             pass

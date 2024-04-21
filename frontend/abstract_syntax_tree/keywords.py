@@ -1,23 +1,29 @@
 from .ast_node import ASTNode
 
 
-class BreakNode(ASTNode):
+class KeywordNode(ASTNode):
+
+    def is_valid(self) -> bool:
+        return self.valid
+
+
+class BreakNode(KeywordNode):
     pass
 
 
-class ThisNode(ASTNode):
+class ThisNode(KeywordNode):
     pass
 
 
-class ContinueNode(ASTNode):
+class ContinueNode(KeywordNode):
     pass
 
 
-class DeductionNode(ASTNode):
+class DeductionNode(KeywordNode):
     pass
 
 
-class ReturnNode(ASTNode):
+class ReturnNode(KeywordNode):
     def __init__(self, value: ASTNode, line: int, position: int):
         super().__init__(line, position)
         self.value = value

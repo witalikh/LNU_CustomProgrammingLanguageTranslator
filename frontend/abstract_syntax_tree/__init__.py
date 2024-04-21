@@ -1,3 +1,4 @@
+# flake8: noqa F401
 from .ast_node import ASTNode
 from .operators import (
     BinaryOperatorNode,
@@ -7,13 +8,17 @@ from .operators import (
     UnaryOperatorNode,
     OperatorCategory
 )
-from .classes import (
+from .classes.common import (
     AccessType,
-    ClassDefinitionNode,
     GenericParameterNode,
+)
+
+from .classes.definition import (
+    ClassDefinitionNode,
     ClassFieldDeclarationNode,
     ClassMethodDeclarationNode,
 )
+
 from .construct_if import (
     IfElseNode
 )

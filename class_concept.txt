@@ -1,0 +1,50 @@
+class Animal[type T]
+{
+    private string _name;
+    private float _weight;
+
+    constructor (string name, float weight)
+    {
+        this._name := name;
+        this._weight := weight;
+    }
+
+
+    public method[string] print_name()
+    {
+        return this._name;
+    }
+
+    public static operator < [boolean] (Animal left, Animal right)
+    {
+        return left._weight < right._weight;
+    }
+
+    public abstract method[string] make_sound();
+}
+
+
+class Dog[type T] from Animal[T]
+{
+
+}
+        """
+        Parse an indexation (square bracket notation) after an identifier
+        or previous indexation or function call.
+        The problem is that the identifier can be:
+        1. User-defined type. In that case, it will be interpreted as generic parameters for the type
+        2. Just assigned object or value. In that case, it will be interpreted as real indexation.
+        And before parsing square brackets expression, the node is passed into this function.
+        There are roughly three cases:
+        1. UserDefinedTypeNode came => definitely generic params needed
+            In constructor calls, it always comes as user-defined type node clearly.
+        2. TemporaryIdentifierNode came => look next token.
+            If next token is identifier => definitely this node is UserDefinedTypeNode, and params are generics
+            Else (including function calls, assignments, operators, end of statement) => regular variable indexation
+        3. SimpleTy
+        Anything else (IdentifierNode,
+
+        :param identifier:
+        :param context:
+        :return:
+        """

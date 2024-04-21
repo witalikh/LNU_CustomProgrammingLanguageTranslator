@@ -20,7 +20,10 @@ def validate_class_inheritance(
     valid_methods = _validate_inherited_methods(class_node)
 
     # 3.
-    return valid_fields and valid_methods
+    valid = valid_fields and valid_methods
+    if not valid:
+        class_node.valid = False
+    return valid
 
 
 def _link_and_validate_class_inheritance(
@@ -92,6 +95,7 @@ def _link_and_validate_class_inheritance(
         if not valid:
             for class_node in class_nodes_list:
                 class_node.validate_inherited_class(False)
+                class_node.valid = False
             return False
 
         # set references
@@ -137,10 +141,13 @@ def _validate_inherited_fields(
                     f.location,
                     f"Duplicate field redefinition: {f.name} is already defined in superclass {curr_node.name}!"
                 )
+                f.valid = False
                 found_duplicate = True
             field_name_set.add(f.name)
         curr_node = curr_node.superclass_node
 
+    if found_duplicate:
+        class_node.valid = False
     return not found_duplicate
 
 
@@ -158,6 +165,7 @@ def _validate_inherited_methods(
     if not valid_superclass:
         # errors are already logged
         class_node.validate_inherited_methods(False)
+        class_node.valid = False
         return False
 
     # otherwise, calculate
@@ -173,6 +181,8 @@ def _validate_inherited_methods(
                 error_logger.add(m.location, f"Virtual method cannot be private")
                 valid = False
         class_node.validate_inherited_methods(valid)
+        if not valid:
+            class_node.valid = False
         return valid
 
     # superclasses should be already validated
@@ -235,4 +245,6 @@ def _validate_inherited_methods(
                     valid = False
 
     current_node.validate_inherited_methods(valid)
+    if not valid:
+        class_node.valid = False
     return valid

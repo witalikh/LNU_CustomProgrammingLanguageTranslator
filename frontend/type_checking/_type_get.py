@@ -1,6 +1,22 @@
-from typing import Tuple, Union, TypedDict, Unpack
+from typing import Literal, Tuple, Union, TypedDict, Unpack
 
-from ..abstract_syntax_tree import *
+from ..abstract_syntax_tree import (
+    ASTNode, TypeNode, TypeCategory,
+    ClassDefinitionNode, ClassFieldDeclarationNode,
+    LiteralNode, FloatLiteralNode, IntegerLiteralNode, StringLiteralNode,
+    ByteStringLiteralNode, BooleanLiteralNode,
+    NullLiteralNode, UndefinedLiteralNode, KeymapLiteralNode, ListLiteralNode,
+    CharLiteralNode, TypeLiteral, ImaginaryFloatLiteralNode, EmptyLiteralNode, KeymapElementNode,
+    BinaryOperatorNode,
+    UnaryOperatorNode,
+    MemberOperatorNode,
+    FunctionCallNode, IndexNode,
+    IdentifierNode,
+    AssignmentNode,
+    ThisNode,
+
+    IntegerSizes, FloatSizes,
+)
 from ..semantics import TypeEnum, POSSIBLE_OVERLOAD_OPERATORS, OPERATOR_NAMES
 
 from ._type_cast import common_base, common_primitive_type
@@ -27,35 +43,54 @@ def check_arithmetic_expression(
     outermost = context.pop("outermost", False)
 
     if isinstance(expression, LiteralNode):
-        return _check_primitive_literal(expression, environment, **context)
+        valid_expr, expr_type = _check_primitive_literal(literal=expression, environment=environment, **context)
+        expression.valid = valid_expr
+        return valid_expr, expr_type
 
     elif isinstance(expression, BinaryOperatorNode):
-        return _check_binary_operator(expression, environment, **context)
+        valid_expr, expr_type = _check_binary_operator(expression=expression, environment=environment, **context)
+        expression.valid = valid_expr
+        return valid_expr, expr_type
 
     elif isinstance(expression, UnaryOperatorNode):
-        return _check_unary_operator(expression, environment, **context)
+        valid_expr, expr_type = _check_unary_operator(unary_op_expr=expression, environment=environment, **context)
+        expression.valid = valid_expr
+        return valid_expr, expr_type
 
     elif isinstance(expression, MemberOperatorNode):
-        return _check_member(expression, environment, **context)
+        valid_expr, expr_type = _check_member(expression=expression, environment=environment, **context)
+        expression.valid = valid_expr
+        return valid_expr, expr_type
 
     elif isinstance(expression, FunctionCallNode):
-        return _get_type_of_function_call(expression, environment, **context)
+        valid_expr, expr_type = _get_type_of_function_call(expression=expression, environment=environment, **context)
+        expression.valid = valid_expr
+        return valid_expr, expr_type
 
     elif isinstance(expression, IndexNode):
-        return _get_type_of_indexation_call(expression, environment, **context)
+        valid_expr, expr_type = _get_type_of_indexation_call(expression=expression, environment=environment, **context)
+        expression.valid = valid_expr
+        return valid_expr, expr_type
 
     elif isinstance(expression, IdentifierNode):
-        return _get_type_of_identifier(expression, environment, **context)
+        valid_expr, expr_type = _get_type_of_identifier(expression=expression, environment=environment, **context)
+        expression.valid = valid_expr
+        return valid_expr, expr_type
 
     elif isinstance(expression, ThisNode):
-        return _check_this_literal(expression, environment, **context)
+        valid_expr, expr_type = _check_this_literal(expression=expression, environment=environment, **context)
+        expression.valid = valid_expr
+        return valid_expr, expr_type
 
     elif isinstance(expression, AssignmentNode):
-        return _check_assignment(expression, environment, **context, outermost=outermost)
+        valid_expr, expr_type = _check_assignment(expression=expression, environment=environment, **context, outermost=outermost)
+        expression.valid = valid_expr
+        return valid_expr, expr_type
     else:
+        print(expression)
         error_logger.add(
-            expression.location,
-            f"Unexpected expression"
+            location=expression.location,
+            reason="Unexpected expression"
         )
         return False, None
 
@@ -64,51 +99,51 @@ def _check_assignment(
     expression: AssignmentNode,
     environment: dict[str, TypeNode],
     **context: Unpack[_ContextParams]
-):
+) -> Tuple[None | Literal[False]] | Tuple[TypeNode | None | Literal[True]]:
     outermost = context.pop("outermost", False)
     if not outermost:
         error_logger.add(
-            expression.location,
-            f"Unexpected place for assignment expression"
+            location=expression.location,
+            reason="Unexpected place for assignment expression"
         )
         return False, None
 
     if not isinstance(expression.left, (IndexNode, IdentifierNode, MemberOperatorNode)):
         error_logger.add(
-            expression.location,
-            f"Invalid expression to assign into: {expression.left.__class__.__name__}"
+            location=expression.location,
+            reason=f"Invalid expression to assign into: {expression.left.__class__.__name__}"
         )
         return False, None
 
     valid_left_expr, left_expr_type = check_arithmetic_expression(
-        expression.left, environment, **context
+        expression=expression.left, environment=environment, **context
     )
     valid_right_expr, right_expr_type = check_arithmetic_expression(
-        expression.right, environment, **context, outermost=outermost
+        expression=expression.right, environment=environment, **context, outermost=outermost
     )
 
     if not (valid_left_expr and valid_right_expr):
         # error is already logged
         return False, None
 
-    if not match_types(right_expr_type, left_expr_type):
+    if not match_types(current_type=right_expr_type, target_type=left_expr_type):
         error_logger.add(
-            expression.location,
-            f"Type assignment mismatch: {left_expr_type.name} != {right_expr_type.name}"
+            location=expression.location,
+            reason=f"Type assignment mismatch: {left_expr_type.name} != {right_expr_type.name}"
         )
         return False, None
 
     if left_expr_type.is_reference and expression.operator == Assignment.VALUE_ASSIGNMENT:
         error_logger.add(
-            expression.location,
-            f"Invalid assignment operator for reference: ':='"
+            location=expression.location,
+            reason="Invalid assignment operator for reference: ':='"
         )
         return False, None
 
     if not left_expr_type.is_reference and expression.operator == Assignment.REFERENCE_ASSIGNMENT:
         error_logger.add(
-            expression.location,
-            f"Invalid assignment operator for value: '='"
+            location=expression.location,
+            reason="Invalid assignment operator for value: '='"
         )
         return False, None
 
@@ -125,14 +160,14 @@ def _check_this_literal(
 
     if context_class and is_nonstatic_method:
         return True, TypeNode(
-            TypeCategory.CLASS if not context_class.generic_params else TypeCategory.GENERIC_CLASS,
-            IdentifierNode(context_class.name, *context_class.location),
-            context_class.generic_params,
+            category=TypeCategory.CLASS if not context_class.generic_params else TypeCategory.GENERIC_CLASS,
+            type_node=IdentifierNode(name=context_class.name, *context_class.location),
+            args=context_class.generic_params,
             *context_class.location
         )
     error_logger.add(
-        expression.location,
-        f"Invalid context for using this keyword"
+        location=expression.location,
+        reason="Invalid context for using this keyword"
     )
     return False, None
 
@@ -154,7 +189,7 @@ def _check_member(
 
     member_name = expression.right.name
     operator = expression.operator
-    valid, class_type = check_arithmetic_expression(expression.left, environment, **context)
+    valid, class_type = check_arithmetic_expression(expression=expression.left, environment=environment, **context)
 
     if not valid:
         # error is logged by this point
@@ -162,37 +197,40 @@ def _check_member(
 
     if class_type is None:
         error_logger.add(
-            expression.location,
-            f"Invalid expression on the left side of the membership {operator} operator"
+            location=expression.location,
+            reason=f"Invalid expression on the left side of the membership {operator} operator"
         )
         return False, None
 
     class_instance = get_class_by_name(
-        class_type.name
+        class_name=class_type.name
     )
 
     class_field: ClassFieldDeclarationNode = get_class_field(
-        class_instance,
-        member_name
+        _class=class_instance,
+        field_name=member_name
     )
 
     if class_field is None:
         error_logger.add(
-            expression.location,
-            f"Field {member_name} of the class {class_type.name} does not exist"
+            location=expression.location,
+            reason=f"Field {member_name} of the class {class_type.name} does not exist"
         )
+        expression.right.value = False
         return False, None
+    else:
+        expression.right.value = True
 
     is_valid, return_type = instantiate_generic_type(
-        class_field.type,
-        class_instance,
-        class_type.arguments
+        possibly_generic_type=class_field.type,
+        class_instance=class_instance,
+        generic_args=class_type.arguments
     )
 
     if not is_valid:
         error_logger.add(
-            expression.location,
-            f"Invalid return type"
+            location=expression.location,
+            reason="Invalid return type"
         )
         return False, None
 
@@ -205,8 +243,8 @@ def _check_binary_operator(
     environment: dict[str, TypeNode],
     **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
-    lhs_valid, lhs_type = check_arithmetic_expression(expression.left, environment, **context)
-    rhs_valid, rhs_type = check_arithmetic_expression(expression.right, environment, **context)
+    lhs_valid, lhs_type = check_arithmetic_expression(expression=expression.left, environment=environment, **context)
+    rhs_valid, rhs_type = check_arithmetic_expression(expression=expression.right, environment=environment, **context)
     operator = expression.operator
 
     if not (lhs_valid and rhs_valid):
@@ -214,25 +252,25 @@ def _check_binary_operator(
         return False, None
 
     if expression.is_arithmetic:
-        return __get_type_of_arithmetic_binary_operator(lhs_type, rhs_type, operator, expression.location)
+        return __get_type_of_arithmetic_binary_operator(lhs_type=lhs_type, rhs_type=rhs_type, operator=operator, location=expression.location)
     elif expression.is_logical:
-        return __get_type_of_logical_binary_operator(lhs_type, rhs_type, operator, expression.location)
+        return __get_type_of_logical_binary_operator(lhs_type=lhs_type, rhs_type=rhs_type, operator=operator, location=expression.location)
     elif expression.is_comparison:
-        return __get_type_of_comparison_binary_operator(lhs_type, rhs_type, operator, expression.location)
+        return __get_type_of_comparison_binary_operator(lhs_type=lhs_type, rhs_type=rhs_type, operator=operator, location=expression.location)
     elif expression.is_casting:
         if not isinstance(expression.right, TypeNode):
             error_logger.add(
                 expression.location,
-                f"Invalid type to cast"
+                "Invalid type to cast"
             )
             return False, None
         return True, expression.right
     elif expression.is_coalesce:
-        return check_arithmetic_expression(expression.left, environment, **context)
+        return check_arithmetic_expression(expression=expression.left, environment=environment, **context)
     else:
         error_logger.add(
-            expression.location,
-            f"Unsupported expression"
+            location=expression.location,
+            reason="Unsupported expression"
         )
         return False, None
 
@@ -244,8 +282,8 @@ def ___get_type_of_overloaded_operator(
 ) -> Tuple[bool, Union[TypeNode, None]]:
     if operator not in POSSIBLE_OVERLOAD_OPERATORS and operator not in ["call", "index"]:
         error_logger.add(
-            location,
-            f"Operator {operator} is not overridable and cannot be applied to this types"
+            location=location,
+            reason=f"Operator {operator} is not overridable and cannot be applied to this types"
         )
         return False, None
 
@@ -253,34 +291,34 @@ def ___get_type_of_overloaded_operator(
         function_name = f"$operator_{OPERATOR_NAMES[operator]}"
     else:
         function_name = f"$operator_{operator}"
-    is_valid, function_node = get_function(function_name, signature)
+    is_valid, function_node = get_function(func_name=function_name, args_signature=signature)
 
     if not is_valid or function_node is None:
         error_logger.add(
-            location,
-            f"Operator {operator} is overridable, but no override definition found"
+            location=location,
+            reason=f"Operator {operator} is overridable, but no override definition found"
         )
         return False, None
 
     if not isinstance(function_node.external_to, ClassDefinitionNode):
         error_logger.add(
-            location,
-            f"Operator overload is not associated to some class"
+            location=location,
+            reason="Operator overload is not associated to some class"
         )
         return False, None
 
     # TODO: support operator overloading for generics
     # TODO: deduce generic args
     is_valid, return_type = instantiate_generic_type(
-        function_node.return_type,
-        function_node.external_to,
-        []
+        possibly_generic_type=function_node.return_type,
+        class_instance=function_node.external_to,
+        generic_args=[]
     )
 
     if not is_valid:
         error_logger.add(
-            location,
-            f"Failed to deduce return type for operator overload"
+            location=location,
+            reason="Failed to deduce return type for operator overload"
         )
         return False, None
 
@@ -294,14 +332,14 @@ def __get_type_of_arithmetic_binary_operator(
     location: tuple[int, int]
 ) -> Tuple[bool, Union[TypeNode, None]]:
     if lhs_type.category == rhs_type.category == TypeCategory.PRIMITIVE:
-        common_type = common_primitive_type(lhs_type.name, rhs_type.name)
+        common_type = common_primitive_type(left_type=lhs_type.name, right_type=rhs_type.name)
         if operator == Operator.DIVIDE:
-            common_type = common_primitive_type(lhs_type.name, TypeEnum.FLOAT)
+            common_type = common_primitive_type(left_type=lhs_type.name, right_type=TypeEnum.FLOAT)
 
         if common_type is None:
             error_logger.add(
-                location,
-                f"Unsupported operation {operator} for types {lhs_type.name} and {rhs_type.name}"
+                location=location,
+                reason=f"Unsupported operation {operator} for types {lhs_type.name} and {rhs_type.name}"
             )
             return False, None
 
@@ -314,37 +352,37 @@ def __get_type_of_arithmetic_binary_operator(
         (lhs_type.category == TypeCategory.COLLECTION and rhs_type.category == TypeCategory.PRIMITIVE)
     ):
         error_logger.add(
-            location,
-            f"Unsupported operation {operator} for types {lhs_type.name} and {rhs_type.name}"
+            location=location,
+            reason=f"Unsupported operation {operator} for types {lhs_type.name} and {rhs_type.name}"
         )
         return False, None
 
     elif lhs_type.category == rhs_type.category == TypeCategory.COLLECTION:
         if lhs_type.type != rhs_type.type:
             error_logger.add(
-                location,
-                f"Unsupported operation {operator} for types {lhs_type.name} and {rhs_type.name}"
+                location=location,
+                reason=f"Unsupported operation {operator} for types {lhs_type.name} and {rhs_type.name}"
             )
             return False, None
 
         if lhs_type.type == TypeEnum.KEYMAP:
             error_logger.add(
-                location,
-                f"Unsupported operation {operator} for type {lhs_type.name}"
+                location=location,
+                reason=f"Unsupported operation {operator} for type {lhs_type.name}"
             )
             return False, None
 
-        common_type = common_base(lhs_type, rhs_type)
+        common_type = common_base(left_type=lhs_type, right_type=rhs_type)
         if common_type is None:
             error_logger.add(
-                location,
-                f"Unsupported operation {operator} for types {lhs_type.name} and {rhs_type.name}"
+                location=location,
+                reason=f"Unsupported operation {operator} for types {lhs_type.name} and {rhs_type.name}"
             )
             return False, None
         return True, common_type
 
     else:
-        return ___get_type_of_overloaded_operator([lhs_type, rhs_type], operator, location)
+        return ___get_type_of_overloaded_operator(signature=[lhs_type, rhs_type], operator=operator, location=location)
 
 
 def __get_type_of_logical_binary_operator(
@@ -355,8 +393,8 @@ def __get_type_of_logical_binary_operator(
 ) -> Tuple[bool, Union[TypeNode, None]]:
     if not (lhs_type.type == rhs_type.type == TypeEnum.BOOLEAN):
         error_logger.add(
-            location,
-            f"Operator {operator} supports only boolean types"
+            location=location,
+            reason=f"Operator {operator} supports only boolean types"
         )
         return False, None
     return True, lhs_type
@@ -381,13 +419,13 @@ def __get_type_of_comparison_binary_operator(
     )
     if lhs_type.type in numeric_types and rhs_type.type in numeric_types:
         return True, TypeNode(
-            TypeCategory.PRIMITIVE,
-            TypeLiteral(TypeEnum.BOOLEAN, *lhs_type.location),
-            None,
+            category=TypeCategory.PRIMITIVE,
+            type_node=TypeLiteral(name=TypeEnum.BOOLEAN, *lhs_type.location),
+            args=None,
             *lhs_type.location
         )
     else:
-        return ___get_type_of_overloaded_operator([lhs_type, rhs_type], operator, location)
+        return ___get_type_of_overloaded_operator(signature=[lhs_type, rhs_type], operator=operator, location=location)
 
 
 def _check_unary_operator(
@@ -395,24 +433,24 @@ def _check_unary_operator(
     environment: dict[str, TypeNode],
     **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
-    valid_expr, expression_type = check_arithmetic_expression(unary_op_expr.expression, environment, **context)
+    valid_expr, expression_type = check_arithmetic_expression(expression=unary_op_expr.expression, environment=environment, **context)
     operator = unary_op_expr.operator
     if unary_op_expr.is_arithmetic:
-        return __get_type_of_arithmetic_unary_operator(expression_type, operator, unary_op_expr.location)
+        return __get_type_of_arithmetic_unary_operator(expression_type=expression_type, operator=operator, location=unary_op_expr.location)
 
     elif unary_op_expr.is_allocation:
-        return __get_type_of_allocation_unary_operator(expression_type, operator, unary_op_expr.location)
+        return __get_type_of_allocation_unary_operator(expression_type=expression_type, operator=operator, location=unary_op_expr.location)
 
     elif unary_op_expr.is_logical:
-        return __get_type_of_logical_unary_operator(expression_type, operator, unary_op_expr.location)
+        return __get_type_of_logical_unary_operator(expression_type=expression_type, operator=operator, location=unary_op_expr.location)
 
     elif unary_op_expr.is_reference:
-        return __get_type_of_reference_unary_operator(expression_type, operator, unary_op_expr.location)
+        return __get_type_of_reference_unary_operator(expression_type=expression_type, operator=operator, location=unary_op_expr.location)
 
     else:
         error_logger.add(
-            unary_op_expr.location,
-            f"Unsupported expression"
+            location=unary_op_expr.location,
+            reason="Unsupported expression"
         )
         return False, None
 
@@ -434,8 +472,8 @@ def __get_type_of_arithmetic_unary_operator(
 
     elif expression_type.category == TypeCategory.COLLECTION:
         error_logger.add(
-            location,
-            f"Unsupported unary operation {operator} for types {expression_type.name}"
+            location=location,
+            reason=f"Unsupported unary operation {operator} for types {expression_type.name}"
         )
         return False, None
 
@@ -450,8 +488,8 @@ def __get_type_of_logical_unary_operator(
 ) -> Tuple[bool, Union[TypeNode, None]]:
     if expression_type.type != TypeEnum.BOOLEAN:
         error_logger.add(
-            location,
-            f"Operator {operator} supports only boolean types"
+            location=location,
+            reason=f"Operator {operator} supports only boolean types"
         )
         return False, None
     return True, expression_type
@@ -464,8 +502,8 @@ def __get_type_of_allocation_unary_operator(
 ) -> Tuple[bool, Union[TypeNode, None]]:
     if expression_type is None:
         error_logger.add(
-            location,
-            f"Unsupported expression"
+            location=location,
+            reason="Unsupported expression"
         )
         return False, None
 
@@ -476,8 +514,8 @@ def __get_type_of_allocation_unary_operator(
         return True, None
     else:
         error_logger.add(
-            location,
-            f"Unsupported expression"
+            location=location,
+            reason="Unsupported expression"
         )
         return False, None
 
@@ -490,8 +528,8 @@ def __get_type_of_reference_unary_operator(
     if operator == Operator.REFERENCE:
         if expression_type.is_reference:
             error_logger.add(
-                location,
-                f"Cannot reference already referenced type"
+                location=location,
+                reason="Cannot reference already referenced type"
             )
             return False, None
         copy = expression_type.shallow_copy()
@@ -499,8 +537,8 @@ def __get_type_of_reference_unary_operator(
         return True, copy
     elif operator == Operator.DEREFERENCE:
         error_logger.add(
-            location,
-            f"Cannot dereference non-reference type"
+            location=location,
+            reason="Cannot dereference non-reference type"
         )
         if not expression_type.is_reference:
             return False, None
@@ -509,8 +547,8 @@ def __get_type_of_reference_unary_operator(
         return True, copy
     else:
         error_logger.add(
-            location,
-            f"Unsupported expression"
+            location=location,
+            reason="Unsupported expression"
         )
         return False, None
 
@@ -526,8 +564,8 @@ def _get_type_of_identifier(
 
     # function name, class name...
     error_logger.add(
-        expression.location,
-        f"Unresolved reference for {expression.name}"
+        location=expression.location,
+        reason=f"Unresolved reference for {expression.name}"
     )
     return False, None
 
@@ -540,16 +578,16 @@ def _get_type_of_function_call(
 
     function_id = expression.identifier
     if isinstance(function_id, MemberOperatorNode):
-        return __get_method_call(expression, environment, **context)
+        return __get_method_call(expression=expression, environment=environment, **context)
 
     elif isinstance(function_id, IdentifierNode):
-        return __get_function_call(expression, environment, **context)
+        return __get_function_call(expression=expression, environment=environment, **context)
 
     # Assume no static, functors etc
     else:
         error_logger.add(
-            expression.location,
-            f"Unsupported expression"
+            location=expression.location,
+            reason="Unsupported expression"
         )
         return False, None
 
@@ -567,30 +605,30 @@ def __get_method_call(
 
     if class_type_node is None:
         error_logger.add(
-            expression.location,
-            f"Invalid expression for method call"
+            location=expression.location,
+            reason="Invalid expression for method call"
         )
         return False, None
 
     if not isinstance(class_type_node, TypeNode):
         error_logger.add(
-            expression.location,
-            f"Invalid expression for method call"
+            location=expression.location,
+            reason="Invalid expression for method call"
         )
         return False, None
 
     potentially_method_name = function_id.right
     if not isinstance(potentially_method_name, IdentifierNode):
         error_logger.add(
-            expression.location,
-            f"Invalid expression for method name: {type(potentially_method_name).__name__}"
+            location=expression.location,
+            reason=f"Invalid expression for method name: {type(potentially_method_name).__name__}"
         )
         return False, None
 
     if class_type_node.category not in (TypeCategory.CLASS, TypeCategory.GENERIC_CLASS):
         error_logger.add(
-            expression.location,
-            f"Invalid type: {class_type_node.type}"
+            location=expression.location,
+            reason=f"Invalid type: {class_type_node.type}"
         )
         return False, None
 
@@ -603,30 +641,30 @@ def __get_method_call(
         args_signature.append(arg_type)
 
     class_instance = get_class_by_name(
-        class_type_node.name
+        class_name=class_type_node.name
     )
 
     class_method = get_class_method(
-        class_instance,
-        potentially_method_name.name,
-        args_signature)
+        _class=class_instance,
+        method_name=potentially_method_name.name,
+        type_signature=args_signature)
 
     if not class_method:
         error_logger.add(
-            expression.location,
-            f"Invalid type: method {potentially_method_name.name} doesn't exist"
+            location=expression.location,
+            reason=f"Invalid type: method {potentially_method_name.name} doesn't exist"
         )
         return False, None
 
     is_valid, return_type = instantiate_generic_type(
-        class_method.return_type,
-        class_instance,
-        class_type_node.arguments
+        possibly_generic_type=class_method.return_type,
+        class_instance=class_instance,
+        generic_args=class_type_node.arguments
     )
     if not is_valid:
         error_logger.add(
-            expression.location,
-            f"Invalid return type"
+            location=expression.location,
+            reason="Invalid return type"
         )
         return False, None
 
@@ -695,7 +733,7 @@ def _get_type_of_indexation_call(
         if not valid:
             error_logger.add(
                 arg.location,
-                f"Invalid expression"
+                "Invalid expression"
             )
             return False, None
         argument_signature.append(arg_type)
@@ -844,6 +882,7 @@ def _check_primitive_literal(
         )
 
     elif isinstance(literal, ListLiteralNode):
+        print("yay")
         elements: list[TypeNode] = []
         for arg in literal.elements:
             valid_arg, arg_type = check_arithmetic_expression(arg, environment, **context)
@@ -862,15 +901,15 @@ def _check_primitive_literal(
                 common_compatible_type = common_base(element, common_compatible_type)
                 if common_compatible_type is None:
                     error_logger.add(
-                        element.location,
-                        f"Type inconsistency in list/array literal"
+                        location=element.location,
+                        reason="Type inconsistency in list/array literal"
                     )
                     return False, None
 
         return True, TypeNode(
-            TypeCategory.COLLECTION,
-            TypeLiteral(TypeEnum.ARRAY, *literal.location),
-            [common_compatible_type],
+            category=TypeCategory.COLLECTION,
+            type_node=TypeLiteral(name=TypeEnum.ARRAY, *literal.location),
+            args=[common_compatible_type],
             *literal.location,
             _literal=True,
         )
@@ -878,7 +917,7 @@ def _check_primitive_literal(
     elif isinstance(literal, KeymapLiteralNode):
         elements: list[tuple[TypeNode, TypeNode]] = []
         for arg in literal.elements:
-            valid_arg, arg_type = __check_keymap_literal(arg, environment, **context)
+            valid_arg, arg_type = __check_keymap_literal(arg=arg, environment=environment, **context)
             if not valid_arg:
                 # error is already logged
                 return False, None
@@ -891,19 +930,19 @@ def _check_primitive_literal(
 
         if len(elements) > 1:
             for element in elements:
-                common_compatible_key_type = common_base(element[0], common_compatible_key_type)
-                common_compatible_value_type = common_base(element[1], common_compatible_value_type)
+                common_compatible_key_type = common_base(left_type=element[0], right_type=common_compatible_key_type)
+                common_compatible_value_type = common_base(left_type=element[1], right_type=common_compatible_value_type)
                 if common_compatible_key_type is None or common_compatible_value_type is None:
                     error_logger.add(
-                        element[0].location,
-                        f"Type inconsistency in keymap literal"
+                        location=element[0].location,
+                        reason="Type inconsistency in keymap literal"
                     )
                     return False, None
 
         return True, TypeNode(
-            TypeCategory.COLLECTION,
-            TypeLiteral(TypeEnum.ARRAY, *literal.location),
-            [common_compatible_key_type, common_compatible_value_type],
+            category=TypeCategory.COLLECTION,
+            type_node=TypeLiteral(name=TypeEnum.ARRAY, *literal.location),
+            args=[common_compatible_key_type, common_compatible_value_type],
             *literal.location,
             _literal=True,
         )
@@ -911,9 +950,9 @@ def _check_primitive_literal(
     elif isinstance(literal, EmptyLiteralNode):
         # special case: can be any empty sequence
         return True, TypeNode(
-            TypeCategory.COLLECTION,
-            TypeLiteral(TypeEnum.ARRAY, *literal.location),
-            None,
+            category=TypeCategory.COLLECTION,
+            type_node=TypeLiteral(name=TypeEnum.ARRAY, *literal.location),
+            args=None,
             *literal.location,
             _literal=True
         )
@@ -926,8 +965,8 @@ def __check_keymap_literal(
     environment: dict[str, TypeNode],
     **context: Unpack[_ContextParams]
 ) -> tuple[bool, tuple[TypeNode, TypeNode] | None]:
-    valid_key, key_type = check_arithmetic_expression(arg.left, environment, **context)
-    valid_value, value_type = check_arithmetic_expression(arg.right, environment, **context)
+    valid_key, key_type = check_arithmetic_expression(expression=arg.left, environment=environment, **context)
+    valid_value, value_type = check_arithmetic_expression(expression=arg.right, environment=environment, **context)
 
     if not valid_key or not valid_value:
         return False, None

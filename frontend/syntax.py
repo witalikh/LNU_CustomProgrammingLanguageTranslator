@@ -30,9 +30,6 @@ class SimpleType(CustomEnum):
 
 class CompoundType(CustomEnum):
     ARRAY = "array"
-    LIST = "list"
-    KEYMAP = "keymap"
-    SET = "set"
 
 
 class TypeModifier(CustomEnum):

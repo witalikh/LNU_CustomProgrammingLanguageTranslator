@@ -15,3 +15,10 @@ class WhileNode(ASTNode):
         self.while_scope = while_scope
 
         # self.all_paths_return = None
+
+    def is_valid(self) -> bool:
+        return all((
+            self.valid,
+            self.condition.is_valid(),
+            self.while_scope.is_valid(),
+        ))

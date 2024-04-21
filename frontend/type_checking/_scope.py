@@ -4,6 +4,7 @@ from .shared import error_logger
 
 from ._type_get import check_arithmetic_expression
 from ._type_match import match_types
+from ._type_validate import validate_type
 from ..semantics import TypeEnum, Assignment
 
 
@@ -172,6 +173,11 @@ def _validate_expression(
                 expression.location,
                 "Variable is already defined in current context"
             )
+            expression.valid = False
+            return False
+
+        # TODO: generic typed name aren't allowed outside class declaration context
+        if not validate_type(expression.type, []):
             return False
 
         if expression.value:
@@ -183,6 +189,7 @@ def _validate_expression(
                 is_nonstatic_method=is_class_nonstatic_method
             )
             if not valid_expr or not expr_type:
+                expression.valid = False
                 return False
 
             match expression.operator:
@@ -192,6 +199,7 @@ def _validate_expression(
                             expression.location,
                             f"Use '=' assignment operator for references!"
                         )
+                        expression.valid = False
                         return False
                 case Assignment.REFERENCE_ASSIGNMENT:
                     if not expr_type.is_reference:
@@ -199,12 +207,14 @@ def _validate_expression(
                             expression.location,
                             f"Use ':=' assignment operator for values!"
                         )
+                        expression.valid = False
                         return False
                 case _:
                     error_logger.add(
                         expression.location,
                         f"Invalid assignment operator for variable initialization: {expression.operator}"
                     )
+                    expression.valid = False
                     return False
 
             if not match_types(expr_type, expression.type):
@@ -212,9 +222,12 @@ def _validate_expression(
                     expression.location,
                     f"Type mismatch for assignment operator: {expr_type.name} and {expression.type.name}"
                 )
+                expression.valid = False
                 return False
 
+        # Validation end: VariableDeclarationNode
         environment[expression.name] = expression.type
+        expression.valid = True
         return True
 
     elif isinstance(expression, ReturnNode):

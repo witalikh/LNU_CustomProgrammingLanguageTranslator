@@ -34,8 +34,6 @@ class TypeEnum(StrEnum):
     GENERIC_CLASS = "generic"
 
 
-
-
 POSSIBLE_OVERLOAD_OPERATORS = [
     Operator.PLUS,
     Operator.MINUS,

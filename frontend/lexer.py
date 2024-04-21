@@ -11,7 +11,7 @@ class TokenScannerIterator:
     An iterator that yields tokens from a source code
     """
 
-    def __init__(self, lexer, input_string: str):
+    def __init__(self, lexer: "Lexer", input_string: str):
         self.position = 0
 
         self.line_number = 0
@@ -50,9 +50,9 @@ class TokenScannerIterator:
     def done_scanning(self) -> bool:
         return self.position >= len(self.input_string)
 
-    def scan_next_token(self) -> tuple[str, str] | None:
+    def scan_next_token(self) -> tuple[str, str] | tuple[None, None]:
         if self.done_scanning():
-            return None
+            return None, None
 
         self._current_relative_position = self._next_relative_position
 
@@ -115,5 +115,5 @@ class Lexer:
         self.regex = re.compile("|".join(parts), flags)
         self.whitespace_regex = re.compile(r"\s*", re.MULTILINE)
 
-    def scan(self, _input) -> Iterator[Token]:
+    def scan(self, _input: str) -> Iterator[Token]:
         return TokenScannerIterator(self, _input)

@@ -4,6 +4,7 @@ from .functions import FunctionCallNode
 from .identifiers import IdentifierNode
 
 
+from abc import ABC
 from typing import Union
 from enum import StrEnum
 
@@ -18,7 +19,7 @@ class OperatorCategory(StrEnum):
     Coalesce = "Coalesce"
 
 
-class Operator(CalculationNode):
+class Operator(CalculationNode, ABC):
     def __init__(
         self,
         category: OperatorCategory,
@@ -73,6 +74,13 @@ class BinaryOperatorNode(Operator):
         self.operator = operator
         self.right = right
 
+    def is_valid(self) -> bool:
+        return all((
+            self.valid,
+            self.left.is_valid(),
+            self.right.is_valid()
+        ))
+
 
 class UnaryOperatorNode(Operator):
     def __init__(
@@ -87,6 +95,12 @@ class UnaryOperatorNode(Operator):
 
         self.operator = operator
         self.expression = expression
+
+    def is_valid(self) -> bool:
+        return all((
+            self.valid,
+            self.expression.is_valid(),
+        ))
 
 
 class AssignmentNode(CalculationNode):
@@ -106,6 +120,13 @@ class AssignmentNode(CalculationNode):
         self.left = left
         self.operator = operator
         self.right = right
+
+    def is_valid(self) -> bool:
+        return all((
+            self.valid,
+            self.left.is_valid(),
+            self.right.is_valid()
+        ))
 
 
 class MemberOperatorNode(CalculationNode):
@@ -127,6 +148,13 @@ class MemberOperatorNode(CalculationNode):
         self.operator = operator
         self.right = member
 
+    def is_valid(self) -> bool:
+        return all((
+            self.valid,
+            self.left.is_valid(),
+            self.right.is_valid()
+        ))
+
 
 class IndexNode(CalculationNode):
     def __init__(
@@ -139,3 +167,10 @@ class IndexNode(CalculationNode):
         super().__init__(line, position)
         self.variable = variable
         self.arguments = arguments
+
+    def is_valid(self) -> bool:
+        return all((
+            self.valid,
+            self.variable.is_valid(),
+            all((a.is_valid() for a in self.arguments))
+        ))

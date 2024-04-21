@@ -34,6 +34,9 @@ class TypeLiteral(ASTNode):
     def __print_tree__(self):
         return f"TypeLiteral({self.name})"
 
+    def is_valid(self) -> bool:
+        return self.valid
+
 
 class TypeNode(ASTNode):
     def __init__(
@@ -91,6 +94,10 @@ class TypeNode(ASTNode):
     @property
     def is_literal(self) -> bool:
         return self._literal
+
+    @property
+    def is_user_defined_type(self) -> bool:
+        return isinstance(self.type, IdentifierNode)
 
     @property
     def modifiers(self) -> str:
@@ -177,3 +184,10 @@ class TypeNode(ASTNode):
         copy._class = self._class
 
         return copy
+
+    def is_valid(self) -> bool:
+        return all((
+            self.valid,
+            self.type.is_valid(),
+            all((a.is_valid() for a in self.arguments)) if self.arguments else True
+        ))

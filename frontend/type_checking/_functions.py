@@ -1,10 +1,11 @@
 from ..abstract_syntax_tree import *
-from .shared import function_definitions
+from .shared import function_definitions, error_logger
 
 from ._overloads import validate_overloaded_function_definitions
 from ._scope import validate_scope
 
 from ._helpers_function import instantiate_environment_from_function_parameters
+from ._type_get import check_arithmetic_expression, match_types
 from ._type_validate import validate_type
 
 
@@ -34,6 +35,7 @@ def _validate_function_definition(
     :return: true if entire function is valid, otherwise false
     """
     valid_signature = _validate_function_signature(function_node)
+    valid_parameters_declaration = _validate_function_parameters(function_node)
 
     if function_node.external_to:
         concrete_class = function_node.external_to
@@ -63,11 +65,15 @@ def _validate_function_definition(
             outermost_function_scope=True,
         )
 
-    return all((
+    # Validation end: FunctionDeclarationNode
+    valid_function = all((
         valid_return_type,
         valid_signature,
+        valid_parameters_declaration,
         valid_implementation
     ))
+    function_node.valid = valid_function
+    return valid_function
 
 
 def _validate_function_signature(
@@ -80,3 +86,30 @@ def _validate_function_signature(
         validate_type(function_node.return_type),
         all((validate_type(x, generics_context) for x in function_node.parameters_signature)),
     ))
+
+
+def _validate_function_parameters(
+    function_node: FunctionDeclarationNode
+) -> bool:
+    # Validation end: FunctionParameter
+    valid = True
+    for p in function_node.parameters:
+        if p.default_value is not None:
+            # TODO: for defaults, no other variable is used
+            is_valid, expr_type = check_arithmetic_expression(p.default_value, {})
+            if not is_valid:
+                valid = False
+                p.valid = False
+
+            if not match_types(expr_type, p.type_node):
+                valid = False
+                p.valid = False
+                error_logger.add(
+                    p.location,
+                    f"Default field value type mismatch: {expr_type.name} detected instead of {f.type.name}"
+                )
+
+        else:
+            p.valid = True
+
+    return valid

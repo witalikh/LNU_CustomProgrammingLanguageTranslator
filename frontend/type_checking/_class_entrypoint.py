@@ -1,4 +1,4 @@
-from ..abstract_syntax_tree import *
+from ..abstract_syntax_tree import ClassDefinitionNode, ClassMethodDeclarationNode
 
 from .shared import error_logger, class_definitions
 
@@ -9,6 +9,7 @@ from ._overloads import validate_overloaded_function_definitions
 from ._scope import validate_scope
 
 from ._helpers_function import instantiate_environment_from_function_parameters
+from ._type_get import check_arithmetic_expression, match_types
 
 
 def validate_all_class_definitions() -> bool:
@@ -22,6 +23,7 @@ def validate_all_class_definitions() -> bool:
         return False
 
     # 2. Check if fields inside them are duplicated or not
+    # and if types and default values are valid
     no_field_duplicates = [
         _flat_check_no_duplicate_fields(concrete_class)
         for concrete_class in class_definitions
@@ -70,6 +72,7 @@ def _check_no_duplicate_class_definitions() -> bool:
     # 2. If there are, error log every duplicate definition
     for class_definition in class_definitions:
         if class_definition.name in repeated_classes:
+            class_definition.valid = False
             error_logger.add(
                 class_definition,
                 f"Repeated class name: {class_definition.name}"
@@ -103,6 +106,7 @@ def _flat_check_no_duplicate_fields(
 
     for field_definition in fields_definitions:
         if field_definition.name in repeated_fields:
+            field_definition.valid = False
             error_logger.add(
                 field_definition.location,
                 f"Repeated field name: {field_definition.name}"
@@ -116,10 +120,30 @@ def _flat_check_no_duplicate_fields(
 def _flat_check_field_types(
     concrete_class: ClassDefinitionNode
 ) -> bool:
-    valid_field_types = all((
-        validate_type(f.type, concrete_class.generic_params)
-        for f in concrete_class.all_fields_definitions
-    ))
+
+    valid_field_types = True
+    for f in concrete_class.all_fields_definitions:
+        valid_type = validate_type(f.type, concrete_class.generic_params)
+
+        if f.value is not None:
+            # TODO: for defaults, no other variable is used
+            is_valid, expr_type = check_arithmetic_expression(f.value, {})
+            if not is_valid:
+                valid_type = False
+
+            if not match_types(expr_type, f.type):
+                valid_type = False
+                error_logger.add(
+                    f.location,
+                    f"Default field value type mismatch: {expr_type.name} detected instead of {f.type.name}"
+                )
+
+        # Validation end: ClassFieldDeclarationNode
+        f.valid = valid_type
+
+        if not valid_type:
+            valid_field_types = False
+
     if not valid_field_types:
         concrete_class.valid = False
     return valid_field_types
@@ -138,20 +162,23 @@ def _flat_check_no_method_collisions(
         if not static_method.is_public:
             error_logger.add(
                 static_method.location,
-                f"Static method cannot be non-public"
+                "Static method cannot be non-public"
             )
+            static_method.valid = False
             valid = False
         if static_method.is_virtual:
             error_logger.add(
                 static_method.location,
-                f"Static method cannot be virtual"
+                "Static method cannot be virtual"
             )
+            static_method.valid = False
             valid = False
         if static_method.is_overload:
             error_logger.add(
                 static_method.location,
-                f"Static method cannot be overloaded"
+                "Static method cannot be overloaded"
             )
+            static_method.valid = False
             valid = False
     if not valid:
         concrete_class.valid = False
@@ -190,6 +217,7 @@ def _validate_class_definition(
         all(valid_static_methods),
     ))
 
+    # Validation end: ClassDefinitionNode
     concrete_class.valid = everything_is_valid
     return everything_is_valid
 
@@ -213,11 +241,15 @@ def validate_method_definition(
         is_class_nonstatic_method=True,
         outermost_function_scope=True,
     )
-    return all((
+
+    # Validation end: ClassMethodDeclarationNode (1/2)
+    valid_method = all((
         valid_return_type,
         valid_signature,
         valid_implementation
     ))
+    method.valid = valid_method
+    return valid_method
 
 
 def validate_static_method_definition(
@@ -239,8 +271,12 @@ def validate_static_method_definition(
         is_class_nonstatic_method=False,
         outermost_function_scope=True,
     )
-    return all((
+
+    # Validation end: ClassMethodDeclarationNode (2/2)
+    valid_method = all((
         valid_return_type,
         valid_signature,
         valid_implementation
     ))
+    method.valid = valid_method
+    return valid_method

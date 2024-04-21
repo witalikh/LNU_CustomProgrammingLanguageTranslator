@@ -2,9 +2,10 @@ from .ast_node import ASTNode
 from .literals import CalculationNode
 from .scope import ScopeNode
 from .typing import TypeNode
+from .ast_mixins import Usable
 
 
-class FunctionDeclarationNode(ASTNode):
+class FunctionDeclarationNode(ASTNode, Usable):
     def __init__(
         self,
         return_type: TypeNode,
@@ -24,7 +25,6 @@ class FunctionDeclarationNode(ASTNode):
         self.external_to = None
 
         self.has_overloads = False
-        self._usages = 0
 
     @property
     def parameters_signature(self) -> list[TypeNode]:
@@ -32,11 +32,17 @@ class FunctionDeclarationNode(ASTNode):
             map(lambda p: p.type_node, self.parameters)
         )
 
-    def use(self):
-        self._usages += 1
+    def is_valid(self) -> bool:
+        return all((
+            self.valid,
+            self.return_type.is_valid() if self.return_type else True,
+            all((p.is_valid() for p in self.parameters)),
+            self.function_body.is_valid(),
+            self.external_to.is_valid() if self.external_to else True
+        ))
 
 
-class FunctionParameter(ASTNode):
+class FunctionParameter(ASTNode, Usable):
     def __init__(
         self,
         type_node: TypeNode,
@@ -49,6 +55,13 @@ class FunctionParameter(ASTNode):
         self.type_node = type_node
         self.parameter_name = parameter_name
         self.default_value = default_value
+
+    def is_valid(self) -> bool:
+        return all((
+            self.valid,
+            self.type_node.is_valid(),
+            self.default_value.is_valid() if self.default_value else True
+        ))
 
 
 class FunctionCallNode(CalculationNode):
@@ -68,3 +81,9 @@ class FunctionCallNode(CalculationNode):
 
         # Type checking
         self.function = None
+
+    def is_valid(self) -> bool:
+        return all((
+            self.valid,
+            all((a.is_valid() for a in self.arguments))
+        ))

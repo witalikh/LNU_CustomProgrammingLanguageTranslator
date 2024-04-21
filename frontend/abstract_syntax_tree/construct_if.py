@@ -26,3 +26,11 @@ class IfElseNode(ASTNode):
     #         if self.else_scope is None:
     #
     #         self._all_paths_return = self.if_scope.all_paths_return
+
+    def is_valid(self) -> bool:
+        return all((
+            self.valid,
+            self.condition.is_valid(),
+            self.if_scope.is_valid(),
+            self.else_scope.is_valid() if self.else_scope else True
+        ))

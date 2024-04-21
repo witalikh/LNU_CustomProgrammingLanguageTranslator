@@ -41,4 +41,6 @@ def _check_program(program: ProgramNode) -> bool:
         outermost_function_scope=False
     )
 
-    return all([valid_class_defs, valid_function_defs, valid_main_statements])
+    valid = all([valid_class_defs, valid_function_defs, valid_main_statements])
+    program.valid = valid
+    return valid
