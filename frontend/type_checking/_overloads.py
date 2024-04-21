@@ -1,6 +1,5 @@
-# NOTE: DONE
 from ._helpers_function import match_signatures
-from ..abstract_syntax_tree import *
+from ..abstract_syntax_tree import FunctionDeclarationNode, ClassMethodDeclarationNode
 
 from .shared import error_logger
 

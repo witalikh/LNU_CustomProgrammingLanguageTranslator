@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from typing import Sequence
-from random import choice
 
 
 class ASTNode(ABC):

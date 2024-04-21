@@ -1,6 +1,3 @@
-from abc import ABC
-
-
 class Usable:
     def __init__(self):
         self._usages = None

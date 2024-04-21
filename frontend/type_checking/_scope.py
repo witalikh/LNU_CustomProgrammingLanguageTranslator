@@ -1,4 +1,16 @@
-from ..abstract_syntax_tree import *
+from ..abstract_syntax_tree import (
+    TypeNode,
+    ProgramNode,
+    ScopeNode,
+    IfElseNode,
+    WhileNode,
+    BreakNode,
+    ContinueNode,
+    ReturnNode,
+    ClassDefinitionNode,
+    VariableDeclarationNode,
+    ASTNode
+)
 
 from .shared import error_logger
 
@@ -197,7 +209,7 @@ def _validate_expression(
                     if expr_type.is_reference:
                         error_logger.add(
                             expression.location,
-                            f"Use '=' assignment operator for references!"
+                            "Use '=' assignment operator for references!"
                         )
                         expression.valid = False
                         return False
@@ -205,7 +217,7 @@ def _validate_expression(
                     if not expr_type.is_reference:
                         error_logger.add(
                             expression.location,
-                            f"Use ':=' assignment operator for values!"
+                            "Use ':=' assignment operator for values!"
                         )
                         expression.valid = False
                         return False
@@ -234,7 +246,7 @@ def _validate_expression(
         if not is_function:
             error_logger.add(
                 expression.location,
-                f"Invalid usage of return keyword: non-function/method context"
+                "Invalid usage of return keyword: non-function/method context"
             )
             return False
 
@@ -248,7 +260,7 @@ def _validate_expression(
         if expression.value is not None and expected_return_type is None:
             error_logger.add(
                 expression.location,
-                f"Expected no return value for procedure"
+                "Expected no return value for procedure"
             )
             return False
 
@@ -279,7 +291,7 @@ def _validate_expression(
         if not is_loop:
             error_logger.add(
                 expression.location,
-                f"Break keyword cannot be used outside of loop"
+                "Break keyword cannot be used outside of loop"
             )
             return False
         return True
@@ -288,7 +300,7 @@ def _validate_expression(
         if not is_loop:
             error_logger.add(
                 expression.location,
-                f"Continue keyword cannot be used outside of loop"
+                "Continue keyword cannot be used outside of loop"
             )
             return False
         return True

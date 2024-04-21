@@ -1,4 +1,4 @@
-from ..abstract_syntax_tree import *
+from ..abstract_syntax_tree import FunctionDeclarationNode, ClassDefinitionNode
 from .shared import function_definitions, error_logger
 
 from ._overloads import validate_overloaded_function_definitions
@@ -106,7 +106,7 @@ def _validate_function_parameters(
                 p.valid = False
                 error_logger.add(
                     p.location,
-                    f"Default field value type mismatch: {expr_type.name} detected instead of {f.type.name}"
+                    f"Default field value type mismatch: {expr_type.name} detected instead of {p.type.name}"
                 )
 
         else:

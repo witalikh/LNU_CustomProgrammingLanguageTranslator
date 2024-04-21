@@ -97,7 +97,7 @@ class FloatLiteralNode(LiteralNode):
             else:
                 self._size = FloatSizes.DOUBLE
 
-        except (OverflowError, ValueError,) as _:
+        except (OverflowError, ValueError,):
             self._size = FloatSizes.DOUBLE
 
     @property

@@ -1,4 +1,9 @@
-from ..abstract_syntax_tree import *
+from ..abstract_syntax_tree import (
+    TypeNode,
+    TypeCategory,
+    TypeLiteral,
+    IdentifierNode
+)
 from ..semantics import TypeEnum
 
 

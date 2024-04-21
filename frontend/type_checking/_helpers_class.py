@@ -1,6 +1,5 @@
 from .shared import class_definitions
-from ..abstract_syntax_tree import *
-from ..abstract_syntax_tree import ClassDefinitionNode
+from ..abstract_syntax_tree import TypeNode, ClassDefinitionNode, ClassFieldDeclarationNode, ClassMethodDeclarationNode
 
 
 from ._helpers_function import match_signatures

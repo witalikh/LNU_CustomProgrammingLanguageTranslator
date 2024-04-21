@@ -1,5 +1,5 @@
 # NOTE: done
-from ..abstract_syntax_tree import *
+from ..abstract_syntax_tree import ClassDefinitionNode
 
 from .shared import error_logger
 from ._helpers_class import get_class_by_name
@@ -82,13 +82,13 @@ def _link_and_validate_class_inheritance(
         elif len(curr_class_node.generic_params) != generic_args:
             error_logger.add(
                 class_node.location,
-                f"Superclass should be instantiated with same generic signature!"
+                "Superclass should be instantiated with same generic signature!"
             )
             valid = False
         elif not all((lhs.name == rhs.name for lhs, rhs in zip(curr_class_node.generic_params, generic_args))):
             error_logger.add(
                 class_node.location,
-                f"Superclass should be instantiated with same generic signature!"
+                "Superclass should be instantiated with same generic signature!"
             )
             valid = False
 
@@ -175,10 +175,10 @@ def _validate_inherited_methods(
         valid = True
         for m in class_node.methods_definitions:
             if m.is_overload:
-                error_logger.add(m.location, f"No base class to overload from")
+                error_logger.add(m.location, "No base class to overload from")
                 valid = False
             if m.is_private and m.is_virtual:
-                error_logger.add(m.location, f"Virtual method cannot be private")
+                error_logger.add(m.location, "Virtual method cannot be private")
                 valid = False
         class_node.validate_inherited_methods(valid)
         if not valid:
@@ -234,13 +234,13 @@ def _validate_inherited_methods(
                 if method.access_type != matching_method_instance.access_type:
                     error_logger.add(
                         method.location,
-                        f"Altered access type when overloading"
+                        "Altered access type when overloading"
                     )
                     valid = False
                 if not strict_match_types(method.return_type, matching_method_instance.return_type):
                     error_logger.add(
                         method.location,
-                        f"Altered return type when overloading"
+                        "Altered return type when overloading"
                     )
                     valid = False
 

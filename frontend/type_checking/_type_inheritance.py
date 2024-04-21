@@ -1,4 +1,8 @@
-from ..abstract_syntax_tree import *
+from ..abstract_syntax_tree import (
+    TypeNode,
+    TypeCategory,
+    ClassDefinitionNode,
+)
 
 from ._helpers_class import get_class_by_name
 from ._type_match import strict_match_types

@@ -145,7 +145,7 @@ class TypeNode(ASTNode):
         if self.category == TypeCategory.PRIMITIVE or TypeCategory.COLLECTION:
             raise AttributeError(f"Type {self.category} cannot have class instance")
         elif self._class is None:
-            raise AttributeError(f"Uninstantiated class node here")
+            raise AttributeError("Uninstantiated class node here")
         else:
             return self._class
 

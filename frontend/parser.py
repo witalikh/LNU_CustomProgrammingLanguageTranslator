@@ -547,7 +547,7 @@ class Parser(object):
                 line, position = self.line_and_position_of_consumed_token()
 
                 elif_condition = self._parse_condition(context=context)
-                elif_scope = self.parse_scope(context=context=context)
+                elif_scope = self.parse_scope(context=context)
 
                 obj = AST.IfElseNode(condition=elif_condition, if_scope=elif_scope, else_scope=None, line=line, position=position)
                 current_node.else_node = obj
