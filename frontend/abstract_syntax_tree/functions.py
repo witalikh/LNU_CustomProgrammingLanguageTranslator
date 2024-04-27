@@ -1,11 +1,12 @@
+from typing import TextIO
 from .ast_node import ASTNode
+from .ast_mixins import Usable
 from .literals import CalculationNode
 from .scope import ScopeNode
 from .typing import TypeNode
-from .ast_mixins import Usable
 
 
-class FunctionDeclarationNode(ASTNode, Usable):
+class FunctionDefNode(ASTNode, Usable):
     def __init__(
         self,
         return_type: TypeNode,
@@ -14,8 +15,8 @@ class FunctionDeclarationNode(ASTNode, Usable):
         function_body: ScopeNode,
         line: int,
         position: int
-    ):
-        super().__init__(line, position)
+    ) -> None:
+        super().__init__(line=line, position=position)
         self.return_type = return_type
         self.function_name = function_name
         self.parameters = parameters
@@ -24,12 +25,14 @@ class FunctionDeclarationNode(ASTNode, Usable):
         # makes sense to operators overload
         self.external_to = None
 
+        # Type checker meta info
         self.has_overloads = False
+        self._usages: int = 0
 
     @property
     def parameters_signature(self) -> list[TypeNode]:
         return list(
-            map(lambda p: p.type_node, self.parameters)
+            map(lambda p: p.type, self.parameters)
         )
 
     def is_valid(self) -> bool:
@@ -41,39 +44,50 @@ class FunctionDeclarationNode(ASTNode, Usable):
             self.external_to.is_valid() if self.external_to else True
         ))
 
+    def translate(self, file: TextIO) -> None:
+        self.write_instruction(file, ['FUNCTION', ' ', self.function_name])
+        for arg in self.parameters:
+            arg.translate(file)
+            file.write('\n')
+        self.function_body.translate(file)
+        self.write_instruction(file, ['ENDFUNCTION', ' ', self.function_name])
+
 
 class FunctionParameter(ASTNode, Usable):
     def __init__(
         self,
-        type_node: TypeNode,
+        type_: TypeNode,
         parameter_name: str,
-        default_value: ASTNode | None,
         line: int,
         position: int,
-    ):
-        super().__init__(line, position)
-        self.type_node = type_node
-        self.parameter_name = parameter_name
-        self.default_value = default_value
+    ) -> None:
+        super().__init__(line=line, position=position)
+        self.type = type_
+        self.name = parameter_name
 
     def is_valid(self) -> bool:
         return all((
             self.valid,
-            self.type_node.is_valid(),
-            self.default_value.is_valid() if self.default_value else True
+            self.type.is_valid(),
         ))
 
+    def translate(self, file: TextIO) -> None:
+        file.write('PARAM')
+        file.write(' ')
+        self.type.translate(file)
+        file.write(' ')
+        file.write(self.name)
 
 class FunctionCallNode(CalculationNode):
     def __init__(
         self,
-        identifier,
+        identifier: ASTNode,
         arguments: list[ASTNode],
         line: int,
         position: int,
         is_constructor: bool = False,
-    ):
-        super().__init__(line, position)
+    ) -> None:
+        super().__init__(line=line, position=position)
         self.identifier = identifier
         self.arguments = arguments
 
@@ -87,3 +101,20 @@ class FunctionCallNode(CalculationNode):
             self.valid,
             all((a.is_valid() for a in self.arguments))
         ))
+
+    def translate(self, file: TextIO) -> None:
+        if self.is_constructor:
+            file.write('CONSTRUCT')
+        else:
+            file.write('CALL')
+
+        file.write(' ')
+        file.write(str(len(self.arguments) + 1))
+        file.write(' ')
+        self.identifier.translate(file)
+        file.write(' ')
+
+        for argument in self.arguments:
+            argument.translate(file)
+            file.write(' ')
+        file.write('\n')

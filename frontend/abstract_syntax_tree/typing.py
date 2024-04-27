@@ -163,7 +163,7 @@ class TypeNode(ASTNode):
             }
 
     # noinspection PyUnresolvedReferences
-    def set_class(self, cls: "ClassDefinitionNode"):
+    def set_class(self, cls: "ClassDefinitionNode") -> None:
         if self.category not in (TypeCategory.CLASS, TypeCategory.GENERIC_CLASS):
             raise ValueError("Cannot assign class node to this")
         self._class = cls

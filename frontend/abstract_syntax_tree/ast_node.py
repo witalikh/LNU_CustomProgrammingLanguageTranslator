@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Sequence
+from typing import Sequence, TextIO
 
 
 class ASTNode(ABC):
@@ -16,12 +16,18 @@ class ASTNode(ABC):
         return self.line, self.position
 
     @abstractmethod
+    def translate(self, file: TextIO) -> None:
+        pass
+
+    @abstractmethod
     def is_valid(self) -> bool:
         pass
 
-    # @abstractmethod
-    # def translate(self):
-    #     pass
+    @staticmethod
+    def write_instruction(file: TextIO, tokens):
+        for token in tokens:
+            file.write(token)
+        file.write('\n')
 
 
 class _TreePrinter:
@@ -97,6 +103,7 @@ class _TreePrinter:
         attrs.pop("line", None)
         attrs.pop("position", None)
         attrs.pop("valid", None)
+        attrs.pop("translatable", None)
         arg_num = len(attrs)
         for index, (arg_name, arg_value) in enumerate(attrs.items()):
             arg_name = arg_name.lstrip("_")

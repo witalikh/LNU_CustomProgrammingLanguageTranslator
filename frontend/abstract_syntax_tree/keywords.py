@@ -24,6 +24,6 @@ class DeductionNode(KeywordNode):
 
 
 class ReturnNode(KeywordNode):
-    def __init__(self, value: ASTNode, line: int, position: int):
-        super().__init__(line, position)
+    def __init__(self, value: ASTNode, line: int, position: int) -> None:
+        super().__init__(line=line, position=position)
         self.value = value

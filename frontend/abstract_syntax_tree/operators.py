@@ -5,7 +5,7 @@ from .identifiers import IdentifierNode
 
 
 from abc import ABC
-from typing import Union
+from typing import Union, TextIO
 from enum import StrEnum
 
 
@@ -25,7 +25,7 @@ class Operator(CalculationNode, ABC):
         category: OperatorCategory,
         line: int,
         position: int
-    ):
+    ) -> None:
         self.category = category
         super().__init__(line, position)
 
@@ -67,12 +67,19 @@ class BinaryOperatorNode(Operator):
         right: ASTNode,
         line: int,
         position: int
-    ):
+    ) -> None:
         super().__init__(category, line, position)
 
         self.left = left
         self.operator = operator
         self.right = right
+
+    def translate(self, file: TextIO) -> None:
+        file.write(self.operator)
+        file.write(' ')
+        self.left.translate()
+        file.write(' ')
+        self.right.translate()
 
     def is_valid(self) -> bool:
         return all((

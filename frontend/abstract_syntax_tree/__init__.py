@@ -14,7 +14,7 @@ from .classes.common import (
 )
 
 from .classes.definition import (
-    ClassDefinitionNode,
+    ClassDefNode,
     ClassFieldDeclarationNode,
     ClassMethodDeclarationNode,
 )
@@ -27,7 +27,7 @@ from .construct_while import (
 )
 from .functions import (
     FunctionParameter,
-    FunctionDeclarationNode,
+    FunctionDefNode,
     FunctionCallNode
 )
 from .keywords import (

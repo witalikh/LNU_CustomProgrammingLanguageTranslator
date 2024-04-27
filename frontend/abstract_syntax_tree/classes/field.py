@@ -4,7 +4,7 @@ from ..typing import TypeNode
 from .common import AccessTypeMixin
 
 
-class ClassFieldDeclarationNode(ASTNode, AccessTypeMixin):
+class ClassFieldDeclarationNode(ASTNode, AccessTypeMixin, Usable):
     def __init__(
         self,
         _type: TypeNode,
@@ -23,17 +23,10 @@ class ClassFieldDeclarationNode(ASTNode, AccessTypeMixin):
         self.value = value
 
         self._access_type = access_type
-        self._static = static
+        self.is_static = static
 
         # Type checking
         self._usages = 0
-
-    def is_validated(self) -> bool:
-        return all((
-            self.valid is not None,
-            self.type.is_validated(),
-            self.value.is_validated() if self.value else True
-        ))
 
     def is_valid(self) -> bool:
         return all((
@@ -41,14 +34,3 @@ class ClassFieldDeclarationNode(ASTNode, AccessTypeMixin):
             self.type.is_valid(),
             self.value.is_valid() if self.value else True
         ))
-
-    @property
-    def is_static(self) -> bool:
-        return self._static
-
-    @is_static.setter
-    def is_static(self, value: bool):
-        self._static = value
-
-    def use(self):
-        self._usages += 1
