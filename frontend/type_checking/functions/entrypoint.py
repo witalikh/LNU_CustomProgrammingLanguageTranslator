@@ -1,12 +1,12 @@
-from ..abstract_syntax_tree import FunctionDeclarationNode, ClassDefinitionNode
-from .shared import function_definitions, error_logger
+from ...abstract_syntax_tree import FunctionDefNode, ClassDefNode
+from ..shared import function_definitions, error_logger
 
-from ._overloads import validate_overloaded_function_definitions
-from ._scope import validate_scope
+from .._overloads import validate_overloaded_function_definitions
+from .._scope import validate_scope
 
-from ._helpers_function import instantiate_environment_from_function_parameters
-from ._type_get import check_arithmetic_expression, match_types
-from ._type_validate import validate_type
+from .._helpers_function import instantiate_environment_from_function_parameters
+from .._type_get import check_arithmetic_expression, match_types
+from .._type_validate import validate_type
 
 
 def validate_all_function_definitions() -> bool:
@@ -26,7 +26,7 @@ def validate_all_function_definitions() -> bool:
 
 
 def _validate_function_definition(
-    function_node: FunctionDeclarationNode
+    function_node: FunctionDefNode
 ) -> bool:
     """
     Validate a concrete function
@@ -77,10 +77,10 @@ def _validate_function_definition(
 
 
 def _validate_function_signature(
-    function_node: FunctionDeclarationNode
+    function_node: FunctionDefNode
 ) -> bool:
     generics_context = None
-    if isinstance(function_node.external_to, ClassDefinitionNode):
+    if isinstance(function_node.external_to, ClassDefNode):
         generics_context = function_node.external_to.generic_params
     return all((
         validate_type(function_node.return_type),
@@ -89,27 +89,9 @@ def _validate_function_signature(
 
 
 def _validate_function_parameters(
-    function_node: FunctionDeclarationNode
+    function_node: FunctionDefNode
 ) -> bool:
     # Validation end: FunctionParameter
-    valid = True
     for p in function_node.parameters:
-        if p.default_value is not None:
-            # TODO: for defaults, no other variable is used
-            is_valid, expr_type = check_arithmetic_expression(p.default_value, {})
-            if not is_valid:
-                valid = False
-                p.valid = False
-
-            if not match_types(expr_type, p.type_node):
-                valid = False
-                p.valid = False
-                error_logger.add(
-                    p.location,
-                    f"Default field value type mismatch: {expr_type.name} detected instead of {p.type.name}"
-                )
-
-        else:
-            p.valid = True
-
-    return valid
+        p.valid = True
+    return True

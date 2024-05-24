@@ -1,8 +1,10 @@
-from typing import Literal, Tuple, Union, TypedDict, Unpack
+from typing import Tuple, Union, TypedDict, Unpack
+
+from .._syntax.operators import Operator
 
 from ..abstract_syntax_tree import (
     ASTNode, TypeNode, TypeCategory,
-    ClassDefinitionNode, ClassFieldDeclarationNode,
+    ClassDefNode, ClassFieldDeclarationNode,
     LiteralNode, FloatLiteralNode, IntegerLiteralNode, StringLiteralNode,
     ByteStringLiteralNode, BooleanLiteralNode,
     NullLiteralNode, UndefinedLiteralNode, KeymapLiteralNode, ListLiteralNode,
@@ -17,11 +19,11 @@ from ..abstract_syntax_tree import (
 
     IntegerSizes, FloatSizes,
 )
-from ..semantics import TypeEnum, POSSIBLE_OVERLOAD_OPERATORS, OPERATOR_NAMES
+from ..semantics import TypeEnum
 
 from ._type_cast import common_base, common_primitive_type
 from ._type_match import match_types
-from ..syntax import Operator, Assignment
+from .._syntax.operators import Assignment
 
 from .shared import error_logger
 
@@ -31,7 +33,7 @@ from ._helpers_function import get_function
 
 class _ContextParams(TypedDict):
     outermost: bool
-    context_class: ClassDefinitionNode | None
+    context_class: ClassDefNode | None
     is_nonstatic_method: bool
 
 
@@ -86,8 +88,9 @@ def check_arithmetic_expression(
         valid_expr, expr_type = _check_assignment(expression=expression, environment=environment, **context, outermost=outermost)
         expression.valid = valid_expr
         return valid_expr, expr_type
+
     else:
-        print(expression)
+        # print(expression)
         error_logger.add(
             location=expression.location,
             reason="Unexpected expression"
@@ -99,7 +102,7 @@ def _check_assignment(
     expression: AssignmentNode,
     environment: dict[str, TypeNode],
     **context: Unpack[_ContextParams]
-) -> Tuple[None | Literal[False]] | Tuple[TypeNode | None | Literal[True]]:
+) -> Tuple[bool, TypeNode | None]:
     outermost = context.pop("outermost", False)
     if not outermost:
         error_logger.add(
@@ -111,7 +114,7 @@ def _check_assignment(
     if not isinstance(expression.left, (IndexNode, IdentifierNode, MemberOperatorNode)):
         error_logger.add(
             location=expression.location,
-            reason=f"Invalid expression to assign into: {expression.left.__class__.__name__}"
+            reason=f"Invalid expression to assign into: {type(expression.left).__name__}"
         )
         return False, None
 
@@ -155,7 +158,7 @@ def _check_this_literal(
     environment: dict[str, TypeNode],
     **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
-    context_class: ClassDefinitionNode | None = context.get("context_class")
+    context_class: ClassDefNode | None = context.get("context_class")
     is_nonstatic_method = context.get("is_nonstatic_method", False)
 
     if context_class and is_nonstatic_method:
@@ -280,15 +283,15 @@ def ___get_type_of_overloaded_operator(
     operator: str,
     location: tuple[int, int]
 ) -> Tuple[bool, Union[TypeNode, None]]:
-    if operator not in POSSIBLE_OVERLOAD_OPERATORS and operator not in ["call", "index"]:
+    if not Operator.overloadable(operator) and operator not in ["call", "index"]:
         error_logger.add(
             location=location,
             reason=f"Operator {operator} is not overridable and cannot be applied to this types"
         )
         return False, None
 
-    if operator in OPERATOR_NAMES:
-        function_name = f"$operator_{OPERATOR_NAMES[operator]}"
+    if Operator.overloadable(operator):
+        function_name = f"$operator_{Operator.translate(operator)}"
     else:
         function_name = f"$operator_{operator}"
     is_valid, function_node = get_function(func_name=function_name, args_signature=signature)
@@ -300,7 +303,7 @@ def ___get_type_of_overloaded_operator(
         )
         return False, None
 
-    if not isinstance(function_node.external_to, ClassDefinitionNode):
+    if not isinstance(function_node.external_to, ClassDefNode):
         error_logger.add(
             location=location,
             reason="Operator overload is not associated to some class"
@@ -343,7 +346,7 @@ def __get_type_of_arithmetic_binary_operator(
             )
             return False, None
 
-        if lhs_type.name == common_type.name:
+        if lhs_type.name == common_type:
             return True, lhs_type
         else:
             return True, rhs_type
@@ -419,9 +422,9 @@ def __get_type_of_comparison_binary_operator(
     )
     if lhs_type.type in numeric_types and rhs_type.type in numeric_types:
         return True, TypeNode(
-            category=TypeCategory.PRIMITIVE,
-            type_node=TypeLiteral(name=TypeEnum.BOOLEAN, *lhs_type.location),
-            args=None,
+            TypeCategory.PRIMITIVE,
+            TypeLiteral(TypeEnum.BOOLEAN, *lhs_type.location),
+            None,
             *lhs_type.location
         )
     else:
@@ -875,7 +878,6 @@ def _check_primitive_literal(
         )
 
     elif isinstance(literal, ListLiteralNode):
-        print("yay")
         elements: list[TypeNode] = []
         for arg in literal.elements:
             valid_arg, arg_type = check_arithmetic_expression(expression=arg, environment=environment, **context)

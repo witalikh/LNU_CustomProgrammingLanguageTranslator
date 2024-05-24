@@ -26,6 +26,7 @@ class FunctionDefNode(ASTNode, Usable):
         self.external_to = None
 
         # Type checker meta info
+        self.overload_number = 0
         self.has_overloads = False
         self._usages: int = 0
 

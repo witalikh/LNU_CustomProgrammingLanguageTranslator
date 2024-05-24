@@ -1,8 +1,8 @@
 from ..abstract_syntax_tree import ProgramNode
 from .shared import error_logger, class_definitions, function_definitions
 
-from ._class_entrypoint import validate_all_class_definitions
-from ._functions import validate_all_function_definitions
+from .classes.entrypoint import validate_all_class_definitions
+from .functions.entrypoint import validate_all_function_definitions
 from ._scope import validate_scope
 
 import sys

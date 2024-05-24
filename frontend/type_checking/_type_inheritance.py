@@ -1,7 +1,7 @@
 from ..abstract_syntax_tree import (
     TypeNode,
     TypeCategory,
-    ClassDefinitionNode,
+    ClassDefNode,
 )
 
 from ._helpers_class import get_class_by_name
@@ -44,8 +44,8 @@ def __check_type_generic_params(
 
 
 def least_common_base(
-    cls: ClassDefinitionNode | TypeNode,
-    other: ClassDefinitionNode | TypeNode
+    cls: ClassDefNode | TypeNode,
+    other: ClassDefNode | TypeNode
 ) -> str | None:
     """
     This method gets the name of the least common base class of the two given classes.
@@ -59,7 +59,7 @@ def least_common_base(
     :return: name of least common base class of the two given classes
     """
     # check usage and generics
-    if isinstance(other, ClassDefinitionNode) and isinstance(cls, ClassDefinitionNode):
+    if isinstance(other, ClassDefNode) and isinstance(cls, ClassDefNode):
         if len(cls.generic_params) != len(other.generic_params):
             return None
     elif isinstance(other, TypeNode) and isinstance(cls, TypeNode):
@@ -87,9 +87,9 @@ def least_common_base(
 
 
 def get_superclass_list(
-    cls: ClassDefinitionNode | TypeNode | str,
+    cls: ClassDefNode | TypeNode | str,
     as_strings: bool = False
-) -> list[ClassDefinitionNode | str] | None:
+) -> list[ClassDefNode | str] | None:
     """
     Gets a list of superclasses (as class definition nodes or string names) from a class definition node, or it's name
     :param cls: string of class name, TypeNode or ClassDefinitionNode instance
@@ -127,7 +127,7 @@ def is_class_type_subtype_of(
     cls: TypeNode,
     other: TypeNode,
 ) -> bool:
-    if isinstance(other, ClassDefinitionNode) and isinstance(cls, ClassDefinitionNode):
+    if isinstance(other, ClassDefNode) and isinstance(cls, ClassDefNode):
         return __is_subclass_of(cls_node=cls, other_node=other)
     elif not (isinstance(other, TypeNode) and isinstance(cls, TypeNode)):
         raise AssertionError("Invalid use: should be a ClassDefinitionNode or TypeNode and equal type args")
@@ -158,8 +158,8 @@ def is_class_type_subtype_of(
 
 
 def __is_subclass_of(
-    cls_node: ClassDefinitionNode,
-    other_node: ClassDefinitionNode
+    cls_node: ClassDefNode,
+    other_node: ClassDefNode
 ) -> bool:
     """
     (Private)
