@@ -1,5 +1,5 @@
 from enum import IntEnum
-from typing import Literal
+from typing import Literal, TextIO
 import struct
 
 from .literals import LiteralNode
@@ -20,7 +20,7 @@ class FloatSizes(IntEnum):
 
 
 class IntegerLiteralNode(LiteralNode):
-    def __init__(self, value: str, base: Literal[10, 16, 8, 2], line: int, position: int):
+    def __init__(self, value: str, base: Literal[10, 16, 8, 2], line: int, position: int) -> None:
         super().__init__(line, position)
         self._value = int(value, base)
         self._size = None
@@ -46,7 +46,7 @@ class IntegerLiteralNode(LiteralNode):
         return self._value
 
     @property
-    def size(self):
+    def size(self) -> None | IntegerSizes:
         return self._size
 
     @property
@@ -76,15 +76,18 @@ class IntegerLiteralNode(LiteralNode):
     def fits(self, size: IntegerSizes) -> bool:
         return self._size <= size
 
+    def translate(self, file: TextIO) -> None:
+        file.write(self.value)
+
 
 class FloatLiteralNode(LiteralNode):
-    def __init__(self, value: str, line: int, position: int):
-        super().__init__(line, position)
+    def __init__(self, value: str, line: int, position: int) -> None:
+        super().__init__(line=line, position=position)
         self._value = float(value)
         self._size = None
         self._init_sizes()
 
-    def _init_sizes(self):
+    def _init_sizes(self) -> None:
         if self.is_nan or self.is_negative_infinity or self.is_positive_infinity:
             self._size = FloatSizes.FLOAT
             return
@@ -140,8 +143,16 @@ class FloatLiteralNode(LiteralNode):
     def is_zero(self) -> bool:
         return self._value == 0
 
+    def translate(self, file: TextIO) -> None:
+        file.write(self.value)
 
-class ImaginaryFloatLiteralNode(LiteralNode):
+
+class ImaginaryFloatLiteralNode(FloatLiteralNode):
     def __init__(self, value: str, line: int, position: int):
         super().__init__(line, position)
         self._value = value
+
+    def translate(self, file: TextIO) -> None:
+        file.write('IMAGINARY')
+        file.write(' ')
+        file.write(self.value)
