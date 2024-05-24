@@ -59,12 +59,12 @@ class TokenType:
 
 
 class Token:
-    def __init__(self, token_type: str, token_value: str, line_number: int, relative_position: int):
+    def __init__(self, token_type: str, token_value: str, line_number: int, column_position: int):
         self._token_type = token_type
         self._token_value = token_value
 
         self._line_number = line_number
-        self._relative_position = relative_position
+        self._column_position = column_position
 
     def __str__(self) -> str:
         return f"{str(self._token_type)}, {self._token_value}"
@@ -83,4 +83,4 @@ class Token:
 
     @property
     def position(self) -> int:
-        return self._relative_position
+        return self._column_position
