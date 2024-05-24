@@ -1,15 +1,17 @@
 from enum import IntFlag
 
-# from .abstract_syntax_tree import *
+from ._syntax.keywords import ClassModifierKeyword, Keyword
+from ._syntax.types_modifier import TypeModifier
+from ._syntax.operators import Assignment, Operator
+
 try:
     import frontend.abstract_syntax_tree as AST
 except ImportError:
     import abstract_syntax_tree as AST
 
 from .exceptions import ParsingException
-from .semantics import POSSIBLE_OVERLOAD_OPERATORS, OPERATOR_NAMES
 from .syntax import (
-    Operator, Keyword, Assignment, TypeModifier, ClassModifierKeyword, Operands
+    Operands
 )
 from .tokens import TokenType, Token
 from typing import Iterator, KeysView, ValuesView, NoReturn, Literal
@@ -153,7 +155,7 @@ class Parser(object):
                        f"but got {token.type} (Token type {token.type})")
             self.error(msg)
 
-    def is_consumable(self, expected_type, expected_value: str | None = None) -> bool:
+    def is_consumable(self, expected_type, expected_value: str | tuple | None = None) -> bool:
         """
         Checks if the current token might be consumed without raising an exception.
         :param expected_type: TokenType or collection of TokenTypes to match within them
@@ -211,25 +213,25 @@ class Parser(object):
 
         while self.current_token.type != TokenType.END_OF_CODE:
             statement = self.parse_statement(ContextFlag.GLOBAL)
-            if isinstance(statement, AST.ClassDefinitionNode):
+            if isinstance(statement, AST.ClassDefNode):
                 operator_overloads = list(
                     filter(
-                        lambda node: isinstance(node, AST.FunctionDeclarationNode),
-                        statement.static_methods_definitions
+                        lambda node: isinstance(node, AST.FunctionDefNode),
+                        statement.static_methods_defs
                     )
                 )
                 other_static = list(
                     filter(
-                        lambda node: not isinstance(node, AST.FunctionDeclarationNode),
-                        statement.static_methods_definitions
+                        lambda node: not isinstance(node, AST.FunctionDefNode),
+                        statement.static_methods_defs
                     )
                 )
                 for overload in operator_overloads:
                     overload.external_to = statement
-                statement.static_methods_definitions = other_static
+                statement.static_methods_defs = other_static
                 function_definitions.extend(operator_overloads)
                 class_definitions.append(statement)
-            elif isinstance(statement, AST.FunctionDeclarationNode):
+            elif isinstance(statement, AST.FunctionDefNode):
                 function_definitions.append(statement)
             else:
                 statements.append(statement)
@@ -300,7 +302,7 @@ class Parser(object):
     def parse_full_class_keywords(
         self,
         context: ContextFlag
-    ) -> AST.ClassFieldDeclarationNode | ClassModifierKeyword | AST.FunctionDeclarationNode:
+    ) -> AST.ClassFieldDeclarationNode | ClassModifierKeyword | AST.FunctionDefNode:
         """
         Parse full statement beginning with class-only keywords such as private, virtual, static, overload...
         :param context: scope context flag. Should strictly equal to class
@@ -351,11 +353,11 @@ class Parser(object):
             result = self.parse_full_variable_declaration(context)
 
         if not isinstance(
-            result, (AST.ClassFieldDeclarationNode, AST.ClassMethodDeclarationNode, AST.FunctionDeclarationNode)
+            result, (AST.ClassFieldDeclarationNode, AST.ClassMethodDeclarationNode, AST.FunctionDefNode)
         ):
             self.error(msg="Parsed expression here is not neither field nor method.")
 
-        if isinstance(result, AST.FunctionDeclarationNode):
+        if isinstance(result, AST.FunctionDefNode):
             if not result.function_name.startswith("$operator_"):
                 raise AssertionError("It is not a global operator overload!")
             elif not static:
@@ -380,7 +382,7 @@ class Parser(object):
 
         return result
 
-    def parse_full_class_definition(self, context: ContextFlag) -> AST.ClassDefinitionNode:
+    def parse_full_class_definition(self, context: ContextFlag) -> AST.ClassDefNode:
         """
         Parses the class definition, with all generics, inheritance, fields and methods
         :param context: scope context flag. Should be strictly global.
@@ -430,7 +432,7 @@ class Parser(object):
                     static_methods.append(expression)
                 else:
                     class_methods.append(expression)
-            elif isinstance(expression, AST.FunctionDeclarationNode):
+            elif isinstance(expression, AST.FunctionDefNode):
                 static_methods.append(expression)
             else:
                 self.error(
@@ -439,14 +441,14 @@ class Parser(object):
                 )
 
         # return instance
-        return AST.ClassDefinitionNode(
+        return AST.ClassDefNode(
             class_name=class_name,
             generic_parameters=generic_parameters,
             superclass=inherited_class,
             fields_definitions=class_fields,
-            methods_definitions=class_methods,
-            static_fields_definitions=static_fields,
-            static_methods_definitions=static_methods,
+            methods_defs=class_methods,
+            static_fields_defs=static_fields,
+            static_methods_defs=static_methods,
             line=line, position=position,
         )
 
@@ -622,7 +624,7 @@ class Parser(object):
         return AST.ContinueNode(line=line, position=position)
 
     def parse_full_function_definition(self, context: ContextFlag) \
-            -> AST.FunctionDeclarationNode | AST.ClassMethodDeclarationNode:
+            -> AST.FunctionDefNode | AST.ClassMethodDeclarationNode:
         """
         Parses the full function/method definition,
         including return type, parameters, and function body
@@ -674,7 +676,7 @@ class Parser(object):
                 line=line, position=position
             )
         else:
-            return AST.FunctionDeclarationNode(
+            return AST.FunctionDefNode(
                 return_type=return_type, function_name=function_name, parameters=parameters,
                 function_body=function_body,
                 line=line, position=position
@@ -693,17 +695,9 @@ class Parser(object):
 
             parameter_name = self.consume(expected_type=TokenType.IDENTIFIER)
             line, position = self.line_and_position_of_consumed_token()
-
-            default_value = None
-            if self.is_consumable(expected_type=TokenType.GENERIC_ASSIGNMENT):
-
-                # forbid reference defaults
-                self.consume(expected_type=TokenType.GENERIC_ASSIGNMENT, expected_value=Assignment.VALUE_ASSIGNMENT)
-                default_value = self.parse_arithmetic_expression(context=context)
-
             parameters.append(
                 AST.FunctionParameter(
-                    type_node=type_node, parameter_name=parameter_name, default_value=default_value,
+                    type_=type_node, parameter_name=parameter_name,
                     line=line, position=position
                 )
             )
@@ -725,10 +719,10 @@ class Parser(object):
         _ = self.consume(expected_type=TokenType.KEYWORD, expected_value=Keyword.OPERATOR)
         if self.is_consumable(expected_type=TokenType.OPERATOR):
             operator = self.consume(expected_type=TokenType.OPERATOR)
-            if operator not in POSSIBLE_OVERLOAD_OPERATORS:
+            if not Operator.overloadable(operator):
                 self.error(msg=f"Invalid operator for overload: {operator}")
             else:
-                return f"$operator_{OPERATOR_NAMES[operator]}"
+                return f"$operator_{Operator.translate(operator)}"
         elif self.is_consumable(expected_type=TokenType.OPENING_SQUARE_BRACKET):
             _ = self.consume(expected_type=TokenType.OPENING_SQUARE_BRACKET)
             _ = self.consume(expected_type=TokenType.CLOSING_SQUARE_BRACKET)
