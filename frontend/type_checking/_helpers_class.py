@@ -1,5 +1,5 @@
 from .shared import class_definitions
-from ..abstract_syntax_tree import TypeNode, ClassDefinitionNode, ClassFieldDeclarationNode, ClassMethodDeclarationNode
+from ..abstract_syntax_tree import TypeNode, ClassDefNode, ClassFieldDeclarationNode, ClassMethodDeclarationNode
 
 
 from ._helpers_function import match_signatures
@@ -8,7 +8,7 @@ from ._helpers_function import match_signatures
 def get_class_by_name(
     class_name: str,
     multiple: bool = False,
-) -> None | ClassDefinitionNode | list[ClassDefinitionNode]:
+) -> None | ClassDefNode | list[ClassDefNode]:
     matching_class_definitions = [
         class_definition
         for class_definition in class_definitions
@@ -23,7 +23,7 @@ def get_class_by_name(
 
 
 def get_class_method(
-    _class: str | ClassDefinitionNode,
+    _class: str | ClassDefNode,
     method_name: str,
     type_signature: list[TypeNode],
     is_static: bool = False,
@@ -32,12 +32,12 @@ def get_class_method(
         class_instance = get_class_by_name(class_name=_class)
         if class_instance is None:
             return None
-    elif isinstance(_class, ClassDefinitionNode):
+    elif isinstance(_class, ClassDefNode):
         class_instance = _class
     else:
         return None
 
-    look_methods_in = class_instance.methods_definitions if not is_static else class_instance.static_methods_definitions
+    look_methods_in = class_instance.methods_defs if not is_static else class_instance.static_methods_defs
     for class_method in look_methods_in:
         if class_method.function_name != method_name:
             continue
@@ -48,7 +48,7 @@ def get_class_method(
 
 
 def get_class_field(
-    _class: str | ClassDefinitionNode,
+    _class: str | ClassDefNode,
     field_name: str,
 ) -> ClassFieldDeclarationNode | None:
 
@@ -57,7 +57,7 @@ def get_class_field(
         if class_instance is None:
             return None
 
-    elif isinstance(_class, ClassDefinitionNode):
+    elif isinstance(_class, ClassDefNode):
         class_instance = _class
 
     else:
@@ -72,7 +72,7 @@ def get_class_field(
 
 def instantiate_generic_type(
     possibly_generic_type: TypeNode,
-    class_instance: ClassDefinitionNode,
+    class_instance: ClassDefNode,
     generic_args: list[TypeNode] | None = None,
 ) -> tuple[bool, TypeNode | None]:
     if possibly_generic_type.represents_generic_param:

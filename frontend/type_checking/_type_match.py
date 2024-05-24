@@ -5,7 +5,7 @@ from ..semantics import TypeEnum
 def match_types(
     current_type: TypeNode,
     target_type: TypeNode,
-):
+) -> int | bool:
     # absolute equal
     if current_type == target_type:
         return True

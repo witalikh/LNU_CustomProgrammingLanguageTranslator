@@ -1,15 +1,15 @@
-from ..abstract_syntax_tree import ClassDefinitionNode, ClassMethodDeclarationNode
+from frontend.abstract_syntax_tree import ClassDefNode, ClassMethodDeclarationNode
 
-from .shared import error_logger, class_definitions
+from ..shared import error_logger, class_definitions
 
-from ._type_validate import validate_type
+from .._type_validate import validate_type
 
-from ._class_inheritance import validate_class_inheritance
-from ._overloads import validate_overloaded_function_definitions
-from ._scope import validate_scope
+from .inheritance import validate_class_inheritance
+from .._overloads import validate_overloaded_function_definitions
+from .._scope import validate_scope
 
-from ._helpers_function import instantiate_environment_from_function_parameters
-from ._type_get import check_arithmetic_expression, match_types
+from .._helpers_function import instantiate_environment_from_function_parameters
+from .._type_get import check_arithmetic_expression, match_types
 
 
 def validate_all_class_definitions() -> bool:
@@ -83,7 +83,7 @@ def _check_no_duplicate_class_definitions() -> bool:
 
 # noinspection DuplicatedCode
 def _flat_check_no_duplicate_fields(
-    concrete_class: ClassDefinitionNode
+    concrete_class: ClassDefNode
 ) -> bool:
     """
     (Hidden)
@@ -92,7 +92,7 @@ def _flat_check_no_duplicate_fields(
     :param concrete_class:
     :return:
     """
-    fields_definitions = concrete_class.fields_definitions + concrete_class.static_fields_definitions
+    fields_definitions = concrete_class.fields_definitions + concrete_class.static_fields_defs
 
     distinct_fields = set()
     repeated_fields = set()
@@ -118,7 +118,7 @@ def _flat_check_no_duplicate_fields(
 
 
 def _flat_check_field_types(
-    concrete_class: ClassDefinitionNode
+    concrete_class: ClassDefNode
 ) -> bool:
 
     valid_field_types = True
@@ -150,15 +150,15 @@ def _flat_check_field_types(
 
 
 def _flat_check_no_method_collisions(
-    concrete_class: ClassDefinitionNode
+    concrete_class: ClassDefNode
 ) -> bool:
-    all_methods = concrete_class.static_methods_definitions + concrete_class.methods_definitions
+    all_methods = concrete_class.static_methods_defs + concrete_class.methods_defs
     valid_overloads = validate_overloaded_function_definitions(all_methods)
     if not valid_overloads:
         return False
 
     valid = True
-    for static_method in concrete_class.static_methods_definitions:
+    for static_method in concrete_class.static_methods_defs:
         if not static_method.is_public:
             error_logger.add(
                 static_method.location,
@@ -186,7 +186,7 @@ def _flat_check_no_method_collisions(
 
 
 def _validate_class_definition(
-    concrete_class: ClassDefinitionNode
+    concrete_class: ClassDefNode
 ) -> bool:
     # For now,
     # duplicate classes, fields and methods are checked
@@ -202,7 +202,7 @@ def _validate_class_definition(
             concrete_class,
             static_method
         )
-        for static_method in concrete_class.methods_definitions
+        for static_method in concrete_class.methods_defs
     ]
 
     valid_methods = [
@@ -210,7 +210,7 @@ def _validate_class_definition(
             concrete_class,
             method
         )
-        for method in concrete_class.methods_definitions
+        for method in concrete_class.methods_defs
     ]
     everything_is_valid = all((
         all(valid_methods),
@@ -223,7 +223,7 @@ def _validate_class_definition(
 
 
 def validate_method_definition(
-    concrete_class: ClassDefinitionNode,
+    concrete_class: ClassDefNode,
     method: ClassMethodDeclarationNode
 ) -> bool:
     valid_return_type = validate_type(method.return_type, concrete_class.generic_params)
@@ -253,7 +253,7 @@ def validate_method_definition(
 
 
 def validate_static_method_definition(
-    concrete_class: ClassDefinitionNode,
+    concrete_class: ClassDefNode,
     method: ClassMethodDeclarationNode
 ) -> bool:
     valid_return_type = validate_type(method.return_type, concrete_class.generic_params)

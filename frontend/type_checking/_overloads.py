@@ -1,11 +1,11 @@
 from ._helpers_function import match_signatures
-from ..abstract_syntax_tree import FunctionDeclarationNode, ClassMethodDeclarationNode
+from ..abstract_syntax_tree import FunctionDefNode, ClassMethodDeclarationNode
 
 from .shared import error_logger
 
 
 def validate_overloaded_function_definitions(
-    definitions: list[FunctionDeclarationNode | ClassMethodDeclarationNode]
+    definitions: list[FunctionDefNode | ClassMethodDeclarationNode]
 ) -> bool:
 
     unique_functions_names = set()
@@ -31,10 +31,10 @@ def validate_overloaded_function_definitions(
 
 
 def _validate_overloaded_function_name(
-    definitions: list[FunctionDeclarationNode | ClassMethodDeclarationNode],
+    definitions: list[FunctionDefNode | ClassMethodDeclarationNode],
     function_name: str
 ) -> bool:
-    overloaded_functions: list[FunctionDeclarationNode] = []
+    overloaded_functions: list[FunctionDefNode] = []
 
     for function in definitions:
         if function.function_name != function_name:

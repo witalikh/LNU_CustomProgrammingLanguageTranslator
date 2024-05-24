@@ -1,9 +1,10 @@
 """
-Contains validate_type function that checks if the TypeNode is valid given in the program
+Contains validate_type function that checks if the TypeNode is valid given in the program.
+Note that every declaration of variable uses this file functions anyway, so don't forget to label usages here.
 """
 
 
-from ..abstract_syntax_tree import TypeNode, ASTNode, TypeCategory, ClassDefinitionNode, GenericParameterNode
+from ..abstract_syntax_tree import TypeNode, ASTNode, TypeCategory, ClassDefNode, GenericParameterNode
 from .shared import error_logger
 
 from ._helpers_class import get_class_by_name
@@ -19,7 +20,7 @@ def validate_type(
 
     # Everything beside TypeNode is invalid
     if not isinstance(type_to_check, TypeNode):
-        error_logger.add(type_to_check, "Invalid type expression")
+        error_logger.add(location=type_to_check, reason="Invalid type expression")
         if type_to_check is not None:
             type_to_check.valid = False
         return False
@@ -33,33 +34,32 @@ def validate_type(
 
     # Every builtin collection is valid when elements type are also valid
     elif type_to_check.category == TypeCategory.COLLECTION:
-        valid = _validate_builtin_compound_type(type_to_check)
+        valid = _validate_builtin_compound_type(type_to_check=type_to_check)
         type_to_check.valid = valid
         type_to_check.type.valid = valid
         return valid
 
     elif type_to_check.category == TypeCategory.CLASS:
-        valid = _validate_non_generic_class_or_generic(type_to_check, generic_parameters_context)
+        valid = _validate_non_generic_class_or_generic(type_to_check=type_to_check, generic_parameters_context=generic_parameters_context)
         type_to_check.valid = valid
         type_to_check.type.valid = valid
         return valid
 
     else:
-        valid = _validate_generic_class(type_to_check)
+        valid = _validate_generic_class(type_to_check=type_to_check)
         type_to_check.valid = valid
         type_to_check.type.valid = valid
         return valid
 
 
-# TODO: parser changes for specific cases
 def _validate_builtin_compound_type(type_to_check: TypeNode) -> bool:
     if not type_to_check.arguments:
         error_logger.add(
-            type_to_check.location,
-            f"Type {type_to_check.type} should contain at least one argument"
+            location=type_to_check.location,
+            reason=f"Type {type_to_check.type} should contain at least one argument"
         )
         return False
-    type_of_first_argument = validate_type(type_to_check.arguments[0])
+    type_of_first_argument = validate_type(type_to_check=type_to_check.arguments[0])
     if not type_of_first_argument:
         return False
     if type_to_check.type == "array":
@@ -67,21 +67,13 @@ def _validate_builtin_compound_type(type_to_check: TypeNode) -> bool:
     elif type_to_check.type == "keymap":
         if len(type_to_check.arguments) != 2:
             error_logger.add(
-                type_to_check.location,
-                f"Keymap type requires exactly two arguments, got {len(type_to_check.arguments)}"
+                location=type_to_check.location,
+                reason=f"Keymap type requires exactly two arguments, got {len(type_to_check.arguments)}"
             )
             return False
-        return validate_type(type_to_check.arguments[1])
-    elif type_to_check.type in ("set", "list"):
-        if len(type_to_check.arguments) != 1:
-            error_logger.add(
-                type_to_check.location,
-                f"Keymap {type_to_check.type} requires only one argument, got {len(type_to_check.arguments)}"
-            )
-            return False
-        return True
+        return validate_type(type_to_check=type_to_check.arguments[1])
     else:
-        error_logger.add(type_to_check.location, f"Unknown type: {type_to_check.type}")
+        error_logger.add(location=type_to_check.location, reason=f"Unknown type: {type_to_check.type}")
         return False
 
 
@@ -89,6 +81,13 @@ def _validate_non_generic_class_or_generic(
     type_to_check: TypeNode,
     generic_parameters_context: list[GenericParameterNode] | None,
 ) -> bool:
+    """
+    This function validates^
+    1. TypeNode that is sure to be a cnon-generic class name
+    2. If context is given, checks if it is generic type alias, used inside other class
+    """
+
+    # if context is generic class and the typenode is not sure if it's just alias
     if generic_parameters_context and type_to_check.represents_generic_param is None:
         generic_node = None
         for parameter in generic_parameters_context:
@@ -105,34 +104,45 @@ def _validate_non_generic_class_or_generic(
 
     class_name = type_to_check.name
     class_instance = get_class_by_name(
-        class_name
+        class_name=class_name
     )
-    if not isinstance(class_instance, ClassDefinitionNode):
-        error_logger.add(type_to_check.location, f"Unknown class definition: {class_name}")
+    if not isinstance(class_instance, ClassDefNode):
+        error_logger.add(location=type_to_check.location, reason=f"Unknown class definition: {class_name}")
         return False
     if class_instance.generic_params:
-        error_logger.add(type_to_check.location, f"Class {class_name} requires generic parameters to instantiate")
+        error_logger.add(
+            location=type_to_check.location,
+            reason=f"Class {class_name} requires generic parameters to instantiate"
+        )
         return False
+
+    class_instance.use()
+    type_to_check.set_class(cls=class_instance)
     return True
 
 
 def _validate_generic_class(type_to_check: TypeNode) -> bool:
     class_name = type_to_check.name
     class_instance = get_class_by_name(
-        class_name
+        class_name=class_name
     )
-    if not isinstance(class_instance, ClassDefinitionNode):
-        error_logger.add(type_to_check.location, f"Unknown class definition: {class_name}")
+    if not isinstance(class_instance, ClassDefNode):
+        error_logger.add(location=type_to_check.location, reason=f"Unknown class definition: {class_name}")
         return False
     if not class_instance.generic_params:
-        error_logger.add(type_to_check.location,
-                         f"Class {class_name} doesn't require generic parameters to instantiate")
+        error_logger.add(
+            location=type_to_check.location,
+            reason=f"Class {class_name} doesn't require generic parameters to instantiate"
+        )
         return False
     if len(type_to_check.arguments) > len(class_instance.generic_params):
-        error_logger.add(type_to_check.location, f"Too many arguments for class {class_name}")
+        error_logger.add(location=type_to_check.location, reason=f"Too many arguments for class {class_name}")
         return False
     if len(type_to_check.arguments) < len(class_instance.generic_params):
-        error_logger.add(type_to_check.location, f"Not enough arguments for class {class_name}")
+        error_logger.add(location=type_to_check.location, reason=f"Not enough arguments for class {class_name}")
         return False
 
-    return all((validate_type(x) for x in type_to_check.arguments))
+    all_is_ok = all((validate_type(type_to_check=x) for x in type_to_check.arguments))
+    if all_is_ok:
+        class_instance.add_instantiation(instantiation=type_to_check.arguments)
+        type_to_check.set_class(cls=class_instance)

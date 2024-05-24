@@ -1,3 +1,4 @@
+from .._syntax.operators import Assignment
 from ..abstract_syntax_tree import (
     TypeNode,
     ProgramNode,
@@ -7,7 +8,7 @@ from ..abstract_syntax_tree import (
     BreakNode,
     ContinueNode,
     ReturnNode,
-    ClassDefinitionNode,
+    ClassDefNode,
     VariableDeclarationNode,
     ASTNode
 )
@@ -17,7 +18,7 @@ from .shared import error_logger
 from ._type_get import check_arithmetic_expression
 from ._type_match import match_types
 from ._type_validate import validate_type
-from ..semantics import TypeEnum, Assignment
+from ..semantics import TypeEnum
 
 
 def validate_scope(
@@ -27,10 +28,10 @@ def validate_scope(
     is_function: bool = False,
     is_class: bool = False,
     expected_return_type:  TypeNode | None = None,
-    current_class: ClassDefinitionNode | None = None,
+    current_class: ClassDefNode | None = None,
     is_class_nonstatic_method: bool = False,
     outermost_function_scope: bool = False
-):
+) -> bool:
     own_environment = environment.copy()
 
     # if empty
@@ -97,7 +98,7 @@ def _validate_expression(
     is_function: bool = False,
     is_class: bool = False,
     expected_return_type: TypeNode | None = None,
-    current_class: ClassDefinitionNode | None = None,
+    current_class: ClassDefNode | None = None,
     is_class_nonstatic_method: bool = False
 ):
     if isinstance(expression, IfElseNode):
@@ -179,7 +180,6 @@ def _validate_expression(
         )
 
     elif isinstance(expression, VariableDeclarationNode):
-
         if expression.name in environment:
             error_logger.add(
                 expression.location,

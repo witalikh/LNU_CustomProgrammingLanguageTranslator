@@ -1,14 +1,14 @@
 # NOTE: done
-from ..abstract_syntax_tree import ClassDefinitionNode
+from frontend.abstract_syntax_tree import ClassDefNode
 
-from .shared import error_logger
-from ._helpers_class import get_class_by_name
-from ._helpers_function import strict_match_signatures
-from ._type_match import strict_match_types
+from frontend.type_checking.shared import error_logger
+from frontend.type_checking._helpers_class import get_class_by_name
+from frontend.type_checking._helpers_function import strict_match_signatures
+from frontend.type_checking._type_match import strict_match_types
 
 
 def validate_class_inheritance(
-    class_node: ClassDefinitionNode
+    class_node: ClassDefNode
 ) -> bool:
     # 1. link classes
     valid_tree = _link_and_validate_class_inheritance(class_node)
@@ -27,7 +27,7 @@ def validate_class_inheritance(
 
 
 def _link_and_validate_class_inheritance(
-    class_node: ClassDefinitionNode
+    class_node: ClassDefNode
 ) -> bool:
     """
     This function is used to validate the inheritance of the class hierarchy,
@@ -114,7 +114,7 @@ def _link_and_validate_class_inheritance(
 
 
 def _validate_inherited_fields(
-    class_node: ClassDefinitionNode
+    class_node: ClassDefNode
 ):
     """
     Check if no duplicate field name found in tree hierarchy
@@ -152,7 +152,7 @@ def _validate_inherited_fields(
 
 
 def _validate_inherited_methods(
-    class_node: ClassDefinitionNode
+    class_node: ClassDefNode
 ):
     # if class is already validated, return value
     if class_node.is_valid_inherited_methods is not None:
@@ -173,7 +173,7 @@ def _validate_inherited_methods(
     # if class is at the top
     if class_node.superclass is None:
         valid = True
-        for m in class_node.methods_definitions:
+        for m in class_node.methods_defs:
             if m.is_overload:
                 error_logger.add(m.location, "No base class to overload from")
                 valid = False
@@ -193,14 +193,14 @@ def _validate_inherited_methods(
 
     current_node = class_node.superclass_node
     while current_node is not None:
-        for method in current_node.methods_definitions:
+        for method in current_node.methods_defs:
             if method.is_virtual:
                 virtual_methods_names.add(method.function_name)
                 virtual_methods_nodes.append(method)
         current_node = current_node.superclass_node
 
     valid = True
-    for method in current_node.methods_definitions:
+    for method in current_node.methods_defs:
         if method.function_name not in virtual_methods_names:
             if method.is_overload:
                 error_logger.add(method.location, f"Method {method.function_name} has no virtual one in superclasses")
