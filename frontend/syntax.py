@@ -1,3 +1,10 @@
+from ._syntax.keywords import Keyword
+from ._syntax.keywords import ClassModifierKeyword
+from ._syntax.operators import Operator
+from ._syntax.operators import Assignment
+from ._syntax.types_compound import CompoundType
+from ._syntax.types_modifier import TypeModifier
+from ._syntax.types_simple import SimpleType
 from .etc import (
     CustomEnum,
     join_bounded_keywords_as_regex,
@@ -8,159 +15,9 @@ from .etc import (
 from .tokens import TokenType
 
 
-class SimpleType(CustomEnum):
-
-    BOOLEAN = "boolean"  # BIT
-    BYTE = "byte"  # 8 bits int
-    SHORT_INTEGER = "short integer"  # 16-bit integer
-    INTEGER = "integer"  # 32-bit integer
-    LONG_INTEGER = "long integer"  # 64-bit integer
-    EXTENDED_INTEGER = "extended integer"
-
-    FLOAT = "float"
-    DOUBLE = "double"
-
-    COMPLEX = "complex"
-
-    CHAR = "char"
-    STRING = "string"
-    BYTESTRING = "bytestring"
-    STREAM = "stream"
-
-
-class CompoundType(CustomEnum):
-    ARRAY = "array"
-
-
-class TypeModifier(CustomEnum):
-    CONST = "const"
-    NULLABLE = "nullable"
-    REFERENCE = "reference"
-
-
-class ClassModifierKeyword(CustomEnum):
-    PUBLIC = "public"
-    PRIVATE = "private"
-    PROTECTED = "protected"
-
-    VIRTUAL = "virtual"
-    OVERRIDE = "override"
-
-    STATIC = "static"
-
-
-class Keyword(CustomEnum):
-    IF = "if"
-    ELSE = "else"
-    FOR = "for"
-    WHILE = "while"
-    FUNCTION = "function"
-    BREAK = "break"
-    CONTINUE = "continue"
-    RETURN = "return"
-    TRY = "try"
-    CATCH = "catch"
-    FINALLY = "finally"
-    STRUCT = "struct"
-
-    # OOP
-    CLASS = "class"
-    THIS = "this"
-    OPERATOR = "operator"
-    TYPE = "type"  # considered as keyword for generic params
-
-    FROM = "from"
-
-
-class Operator(CustomEnum):
-    # member access
-    OBJECT_MEMBER_ACCESS = "."
-    REFERENCE_MEMBER_ACCESS = "->"
-    SCOPE_RESOLUTION = "::"
-
-    # arithmetic
-    PLUS = "+"
-    MINUS = "-"
-    POWER = "**"
-    MULTIPLY = "*"
-    FLOOR_DIVIDE = "//"
-    DIVIDE = "/"
-    MODULO = "%"
-
-    # logical (short-circuit)
-    AND = "and"
-    OR = "or"
-    XOR = "xor"
-    NOT = "not"
-
-    # logical (full check)
-    FULL_AND = "&&"
-    FULL_OR = "||"
-    FULL_XOR = "^^"
-
-    # bitwise
-    BITWISE_XOR = "^"
-    BITWISE_AND = "&"
-    BITWISE_OR = "|"
-    BITWISE_RSHIFT = ">>"
-    BITWISE_LSHIFT = "<<"
-    BITWISE_INVERSE = "~"
-
-    # comparison
-    LESSER_OR_EQUAL = "<="
-    GREATER_OR_EQUAL = ">="
-    NOT_EQUAL = "!="
-    GREATER = ">"
-    LESSER = "<"
-    EQUAL = "=="
-    STRICT_EQUAL = "==="
-    NOT_STRICT_EQUAL = "!=="
-
-    MEMBERSHIP_OPERATOR = "in"
-
-    # syntax sugar
-    FUNCTIONAL = "@"
-
-    # literals
-    KEYMAP_LITERAL = ":"
-
-    # unary
-    INTERPOLATION = "$"
-
-    # pointers
-    REFERENCE = "ref"
-    DEREFERENCE = "deref"
-
-    # type casting
-    TYPE_CAST = "as"
-    NULL_COALESCE = "??"
-    NEW_INSTANCE = "new"
-    DELETE_INSTANCE = "delete"
-
-
 class Operands(CustomEnum):
     DEDUCTION = "?"
     TERMINATION = "!"
-
-
-class Assignment(CustomEnum):
-    VALUE_ASSIGNMENT = ":="
-    REFERENCE_ASSIGNMENT = "="
-
-    COMPOUND_PLUS = "+="
-    COMPOUND_MINUS = "-="
-    COMPOUND_MULTIPLY = "*="
-    COMPOUND_DIVIDE = "/="
-    COMPOUND_POWER = "**="
-    COMPOUND_MODULO = "%="
-    COMPOUND_FLOOR_DIVIDE = "//="
-
-    # compound bitwise
-    COMPOUND_BITWISE_XOR = "^="
-    COMPOUND_BITWISE_AND = "&="
-    COMPOUND_BITWISE_OR = "|="
-    COMPOUND_BITWISE_RSHIFT = ">>="
-    COMPOUND_BITWISE_LSHIFT = "<<="
 
 
 ASSIGNMENTS_REGEX = join_unbounded_keywords_as_regex(Assignment.values())
