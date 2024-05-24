@@ -15,8 +15,8 @@ class TokenScannerIterator:
         self.position = 0
 
         self.line_number = 0
-        self._current_relative_position = 0
-        self._next_relative_position = 0
+        self._current_token_relative_position = 0
+        self._next_token_relative_position = 0
 
         self.lexer: Lexer = lexer
         self.input_string = input_string
@@ -40,10 +40,10 @@ class TokenScannerIterator:
         while token_type == TokenType.COMMENT:
             token_type, token_value = self.scan_next_token()
 
-        return Token(token_type, token_value, self.line_number, self._current_relative_position)
+        return Token(token_type, token_value, self.line_number, self._current_token_relative_position)
 
     def error(self):
-        err = UnknownTokenError(self.input_string[self.position], self.line_number, self._current_relative_position)
+        err = UnknownTokenError(self.input_string[self.position], self.line_number, self._current_token_relative_position)
         logging.log(logging.ERROR, str(err))
         raise err
 
@@ -54,24 +54,24 @@ class TokenScannerIterator:
         if self.done_scanning():
             return None, None
 
-        self._current_relative_position = self._next_relative_position
+        self._current_token_relative_position = self._next_token_relative_position
 
         whitespace_match = self.lexer.whitespace_regex.match(self.input_string, self.position)
         if whitespace_match:
             if self.input_string[self.position] == "\n":
                 self.line_number += whitespace_match.group().count("\n")
-                self._current_relative_position = len(whitespace_match.group()[whitespace_match.group().rfind('\n'):])
-                self._next_relative_position = self._current_relative_position
+                self._current_token_relative_position = len(whitespace_match.group()[whitespace_match.group().rfind('\n'):])
+                self._next_token_relative_position = self._current_token_relative_position
             else:
-                self._current_relative_position += whitespace_match.end() - self.position
-                self._next_relative_position += whitespace_match.end() - self.position
+                self._current_token_relative_position += whitespace_match.end() - self.position
+                self._next_token_relative_position += whitespace_match.end() - self.position
             self.position = whitespace_match.end()
 
         match = self.lexer.regex.match(self.input_string, self.position)
         if match is None:
             self.error()
 
-        self._next_relative_position += (match.end() - self.position)
+        self._next_token_relative_position += (match.end() - self.position)
         self.position = match.end()
 
         value = match.group(match.lastgroup)
@@ -100,9 +100,9 @@ class Lexer:
         else:
             flags = re.M | re.I
 
-        self._join_rules(rules, flags)
+        self.join_rules(rules, flags)
 
-    def _join_rules(self, rules: Sequence[tuple[str, str]], flags: re.RegexFlag) -> None:
+    def join_rules(self, rules: Sequence[tuple[str, str]], flags: re.RegexFlag) -> None:
         parts = []
         for name, rule in rules:
             if not isinstance(name, str):
