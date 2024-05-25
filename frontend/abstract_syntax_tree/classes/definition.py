@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import Iterator, Union
+from typing import Iterator, Union, TextIO
 
 from ..ast_node import ASTNode
 from ..ast_mixins import Usable
@@ -101,3 +101,23 @@ class ClassDefNode(ASTNode, Usable):
         if len(instantiation) != self.generic_params:
             raise ValueError("Args count mismatch")
         self._instantiations.append(instantiation)
+
+    def translate(self, file: TextIO) -> None:
+        if not self.translatable:
+            raise ValueError("Translation error: generics not mangled ")
+        if self.static_methods_defs:
+            raise ValueError("Translation error: static methods not mangled")
+        if self.fields_definitions:
+            raise ValueError("Translation error: fields definitions not mangled")
+
+        self.write_instruction(file, ['CLASS', ' ', self.name])
+        for field in self.fields_definitions:
+            field.translate(file)
+            file.write('\n')
+        file.write('\n')
+
+        for method in self.methods_defs:
+            method.translate(file)
+            file.write('\n')
+
+        self.write_instruction(file, ['ENDCLASS', ' ', self.name])

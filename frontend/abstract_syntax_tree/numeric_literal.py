@@ -77,7 +77,7 @@ class IntegerLiteralNode(LiteralNode):
         return self._size <= size
 
     def translate(self, file: TextIO) -> None:
-        file.write(self.value)
+        file.write(str(self.value))
 
 
 class FloatLiteralNode(LiteralNode):
@@ -144,15 +144,15 @@ class FloatLiteralNode(LiteralNode):
         return self._value == 0
 
     def translate(self, file: TextIO) -> None:
-        file.write(self.value)
+        file.write(str(self.value))
 
 
 class ImaginaryFloatLiteralNode(FloatLiteralNode):
     def __init__(self, value: str, line: int, position: int):
-        super().__init__(line, position)
+        super().__init__(value, line, position)
         self._value = value
 
     def translate(self, file: TextIO) -> None:
         file.write('IMAGINARY')
         file.write(' ')
-        file.write(self.value)
+        file.write(str(self.value))

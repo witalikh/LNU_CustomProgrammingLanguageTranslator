@@ -7,7 +7,9 @@ def instantiate_all_generics(root: ProgramNode):
     for class_defn in root.class_definitions:
         if class_defn.generic_params:
             for inst in class_defn._instantiations:
+                pass
 
 
 
-def instantiate_generics
+def instantiate_generics():
+    pass

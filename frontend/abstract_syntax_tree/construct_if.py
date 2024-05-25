@@ -56,4 +56,3 @@ class IfElseNode(ASTNode):
             self.write_instruction(file, ['LABEL', ' ', else_label])
             self.else_scope.translate(file)
         self.write_instruction(file, ['LABEL', ' ', endif_label])
-

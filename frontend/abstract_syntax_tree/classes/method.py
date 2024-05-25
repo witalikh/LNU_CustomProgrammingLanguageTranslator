@@ -1,6 +1,6 @@
 from ..ast_node import ASTNode
 from ..ast_mixins import Usable
-from ..typing import TypeNode
+from ..typing import TypeNode, TextIO
 from ..functions import FunctionParameter
 from ..scope import ScopeNode
 from .common import AccessTypeMixin
@@ -50,3 +50,12 @@ class ClassMethodDeclarationNode(ASTNode, AccessTypeMixin, Usable):
             all((x.is_valid() for x in self.parameters)),
             self.function_body.is_valid(),
         ))
+
+    def translate(self, file: TextIO) -> None:
+        # TODO: normal constructors
+        self.write_instruction(file, ['METHOD', ' ', self.function_name])
+        for arg in self.parameters:
+            arg.translate(file)
+            file.write('\n')
+        self.function_body.translate(file)
+        self.write_instruction(file, ['ENDMETHOD', ' ', self.function_name])

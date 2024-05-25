@@ -3,6 +3,7 @@ from .classes.definition import ClassDefNode
 from .functions import FunctionDefNode
 from typing import TextIO
 
+
 class ProgramNode(ASTNode):
     def __init__(
         self,
@@ -16,17 +17,21 @@ class ProgramNode(ASTNode):
         self.statements = statements
 
     def translate(self, file: TextIO):
-        self.write_instruction(file, ['REGION', ' ', 'CLASS_DEFNS'])
-        for cls in self.class_definitions:
-            cls.translate(file)
-            file.write('\n')
-        self.write_instruction(file, ['ENDREGION', ' ', 'CLASS_DEFNS'])
+        if self.class_definitions:
+            self.write_instruction(file, ['REGION', ' ', 'CLASS_DEFNS', '\n'])
+            for cls in self.class_definitions:
+                cls.translate(file)
+                file.write('\n\n')
+            self.write_instruction(file, ['ENDREGION', ' ', 'CLASS_DEFNS'])
+            file.write('\n\n')
 
-        self.write_instruction(file, ['REGION', ' ', 'FUNC_DEFNS'])
-        for fnc in self.function_definitions:
-            fnc.translate(file)
-            file.write('\n')
-        self.write_instruction(file, ['ENDREGION', ' ', 'FUNC_DEFNS'])
+        if self.function_definitions:
+            self.write_instruction(file, ['REGION', ' ', 'FUNC_DEFNS', '\n'])
+            for fnc in self.function_definitions:
+                fnc.translate(file)
+                file.write('\n')
+            self.write_instruction(file, ['ENDREGION', ' ', 'FUNC_DEFNS'])
+            file.write('\n\n')
 
         for statement in self.statements:
             statement.translate(file)

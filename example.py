@@ -5,28 +5,37 @@ from frontend.lexer import Lexer
 from frontend.syntax import RULES
 from frontend.parser import Parser
 from frontend.type_checking.entrypoint import type_check_program
+from frontend.desugaring.main import desugar_ast_tree
 
 
 def scenario_1() -> None:
     code_example = (r"""
-    const integer PI := 3.1415;
-    function[integer] circleArea(integer radius){
-        # Handle specific user inputs as zeros for sake of simplicity
-        if (radius <= 0) { return 0; }
-        return PI * r ** 2;
-    }
+function[double] circleArea(double radius){
+    # Handle specific user inputs as zeros for sake of simplicity
+    double PI := 3.1415;
+    if (radius <= 0) { return 0; }
+    return PI * radius ** 2;
+}
 
-    string x;
-    input(reference x);
-    print("The circle area is: \n")
-    print(circleArea(integerFromString(x)));
-
+string x;
+input(ref x);
+print("The circle area is: \n");
+print(circleArea(integerFromString(x)));
+    
     """)
 
     lexer = Lexer(RULES)
-    lexemes = lexer.scan(code_example)
-    for lexeme in lexemes:
-        print(f'\033[95m<\033[0m\033[93m{lexeme.type}\033[0m   \033[94m{lexeme.value}\033[0m \033[95m>\033[0m')
+    lexemes_iter = lexer.scan(code_example)
+    # lexemes = lexer.scan(code_example)
+    # for lexeme in lexemes:
+    #     print(f'\033[95m<\033[0m\033[93m{lexeme.type}\033[0m   \033[94m{lexeme.value}\033[0m \033[95m>\033[0m')
+    parser = Parser(lexemes_iter)
+    x = parser.parse()
+    type_check_program(x)
+    # print(x)
+
+    with open('fuck.out', 'w') as f:
+        x.translate(f)
 
 
 def scenario_2() -> None:
@@ -58,8 +67,8 @@ def scenario_2() -> None:
 
     parser = Parser(lexemes_iter)
     x = parser.parse()
-    print(x)
-    print(type_check_program(x))
+    # print(x)
+    type_check_program(x)
 
 
 def scenario_3() -> None:
@@ -148,11 +157,14 @@ def scenario_4():
     x = parser.parse()
     print(type_check_program(x))
     print("Entire program valid:", x.is_valid())
-    # print(x)
+
+    desugar_ast_tree(x)
+
+    print(x)
 
 
 if __name__ == '__main__':
-    scenario_4()
+    scenario_1()
 
 
 # Program

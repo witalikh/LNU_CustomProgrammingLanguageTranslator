@@ -1,11 +1,14 @@
+from typing import TextIO
+
 from .ast_node import ASTNode
+from .._syntax.operators import Assignment
 
 
 class VariableDeclarationNode(ASTNode):
 
     def __init__(
         self,
-        _type: "TypeNode",
+        _type: ASTNode,
         name: str,
         operator: str | None,
         value: ASTNode | None,
@@ -24,3 +27,19 @@ class VariableDeclarationNode(ASTNode):
             and self.type.is_valid()
             and self.value.is_valid() if self.value is not None else True
         )
+
+    def translate(self, file: TextIO) -> None:
+        file.write('SET')
+        file.write(' ')
+        self.type.translate(file)
+        file.write(' ')
+        file.write(self.name)
+        if self.value is not None:
+            file.write('\n')
+            file.write(Assignment.translate(self.operator))
+            file.write(' ')
+            file.write('ID')
+            file.write(' ')
+            file.write(self.name)
+            file.write(' ')
+            self.value.translate(file)

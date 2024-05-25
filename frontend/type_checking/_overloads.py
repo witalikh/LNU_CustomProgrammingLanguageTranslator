@@ -8,20 +8,28 @@ def validate_overloaded_function_definitions(
     definitions: list[FunctionDefNode | ClassMethodDeclarationNode]
 ) -> bool:
 
-    unique_functions_names = set()
+    not_overloaded_function_names = set()
     distinct_functions_names = set()
 
     for function in definitions:
         name = function.function_name
         if name in distinct_functions_names:
-            unique_functions_names.discard(name)
+            not_overloaded_function_names.discard(name)
         else:
-            unique_functions_names.add(name)
-        distinct_functions_names.add(name)
+            not_overloaded_function_names.add(name)
+            distinct_functions_names.add(name)
 
-    overloads = distinct_functions_names.difference(unique_functions_names)
+    overloads = distinct_functions_names.difference(not_overloaded_function_names)
     if not overloads:
         return True
+
+    # denoting different overloads for desugaring stage
+    counter = {name: 0 for name in overloads}
+    for function in definitions:
+        if (name := function.function_name) in overloads:
+            function.has_overloads = True
+            function.overload_number = counter[name]
+            counter[name] += 1
 
     overload_validations = [
         _validate_overloaded_function_name(definitions=definitions, function_name=function_name)
