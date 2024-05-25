@@ -14,5 +14,5 @@ from others.
 # validate => returns boolean, with error logging
 # get => gets value or None, with error logging
 #
-# If function is not gonna be imported anywhere,
+# If function is not going to be imported anywhere,
 # make it private inside a module

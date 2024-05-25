@@ -14,7 +14,7 @@ class CustomEnum:
         if not hasattr(cls, "_inner_dict"):
             new_dct = cls.__dict__.copy()
             for key in cls.__dict__.keys():
-                if key.startswith("__") and key.endswith("__"):
+                if key.startswith("__") and key.endswith("__") or key.islower():
                     new_dct.pop(key, None)
             cls._inner_dict = new_dct
 

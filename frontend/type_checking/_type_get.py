@@ -9,8 +9,8 @@ from ..abstract_syntax_tree import (
     ByteStringLiteralNode, BooleanLiteralNode,
     NullLiteralNode, UndefinedLiteralNode, KeymapLiteralNode, ListLiteralNode,
     CharLiteralNode, TypeLiteral, ImaginaryFloatLiteralNode, EmptyLiteralNode, KeymapElementNode,
-    BinaryOperatorNode,
-    UnaryOperatorNode,
+    BinaryOperatorABCNode,
+    UnaryOperatorABCNode,
     MemberOperatorNode,
     FunctionCallNode, IndexNode,
     IdentifierNode,
@@ -49,12 +49,12 @@ def check_arithmetic_expression(
         expression.valid = valid_expr
         return valid_expr, expr_type
 
-    elif isinstance(expression, BinaryOperatorNode):
+    elif isinstance(expression, BinaryOperatorABCNode):
         valid_expr, expr_type = _check_binary_operator(expression=expression, environment=environment, **context)
         expression.valid = valid_expr
         return valid_expr, expr_type
 
-    elif isinstance(expression, UnaryOperatorNode):
+    elif isinstance(expression, UnaryOperatorABCNode):
         valid_expr, expr_type = _check_unary_operator(unary_op_expr=expression, environment=environment, **context)
         expression.valid = valid_expr
         return valid_expr, expr_type
@@ -242,7 +242,7 @@ def _check_member(
 
 
 def _check_binary_operator(
-    expression: BinaryOperatorNode,
+    expression: BinaryOperatorABCNode,
     environment: dict[str, TypeNode],
     **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
@@ -291,7 +291,7 @@ def ___get_type_of_overloaded_operator(
         return False, None
 
     if Operator.overloadable(operator):
-        function_name = f"$operator_{Operator.translate(operator)}"
+        function_name = f"$operator_{Operator.translate(operator, 2)}"
     else:
         function_name = f"$operator_{operator}"
     is_valid, function_node = get_function(func_name=function_name, args_signature=signature)
@@ -432,7 +432,7 @@ def __get_type_of_comparison_binary_operator(
 
 
 def _check_unary_operator(
-    unary_op_expr: UnaryOperatorNode,
+    unary_op_expr: UnaryOperatorABCNode,
     environment: dict[str, TypeNode],
     **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:

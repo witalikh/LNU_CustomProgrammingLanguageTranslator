@@ -1,3 +1,5 @@
+from .._syntax.operators import Operator, Assignment
+
 from .ast_node import ASTNode
 from .literals import CalculationNode
 from .functions import FunctionCallNode
@@ -19,7 +21,7 @@ class OperatorCategory(StrEnum):
     Coalesce = "Coalesce"
 
 
-class Operator(CalculationNode, ABC):
+class OperatorABC(CalculationNode, ABC):
     def __init__(
         self,
         category: OperatorCategory,
@@ -58,7 +60,7 @@ class Operator(CalculationNode, ABC):
         return self.category == OperatorCategory.Coalesce
 
 
-class BinaryOperatorNode(Operator):
+class BinaryOperatorABCNode(OperatorABC):
     def __init__(
         self,
         category: OperatorCategory,
@@ -75,11 +77,11 @@ class BinaryOperatorNode(Operator):
         self.right = right
 
     def translate(self, file: TextIO) -> None:
-        file.write(self.operator)
+        file.write(Operator.translate(self.operator, 2))
         file.write(' ')
-        self.left.translate()
+        self.left.translate(file)
         file.write(' ')
-        self.right.translate()
+        self.right.translate(file)
 
     def is_valid(self) -> bool:
         return all((
@@ -89,7 +91,7 @@ class BinaryOperatorNode(Operator):
         ))
 
 
-class UnaryOperatorNode(Operator):
+class UnaryOperatorABCNode(OperatorABC):
     def __init__(
         self,
         category: OperatorCategory,
@@ -108,6 +110,11 @@ class UnaryOperatorNode(Operator):
             self.valid,
             self.expression.is_valid(),
         ))
+
+    def translate(self, file: TextIO) -> None:
+        file.write(Operator.translate(self.operator, 1))
+        file.write(' ')
+        self.expression.translate(file)
 
 
 class AssignmentNode(CalculationNode):
@@ -134,6 +141,19 @@ class AssignmentNode(CalculationNode):
             self.left.is_valid(),
             self.right.is_valid()
         ))
+
+    def translate(self, file: TextIO) -> None:
+        if isinstance(self.right, AssignmentNode):
+            self.right.translate(file)
+            file.write('\n')
+        file.write(Assignment.translate(self.operator))
+        file.write(' ')
+        self.left.translate(file)
+        file.write(' ')
+        if isinstance(self.right, AssignmentNode):
+            self.right.left.translate(file)
+        else:
+            self.right.translate(file)
 
 
 class MemberOperatorNode(CalculationNode):
@@ -162,6 +182,13 @@ class MemberOperatorNode(CalculationNode):
             self.right.is_valid()
         ))
 
+    def translate(self, file: TextIO) -> None:
+        file.write(Operator.translate(self.operator, 2))
+        file.write(' ')
+        self.left.translate(file)
+        file.write(' ')
+        self.right.translate(file)
+
 
 class IndexNode(CalculationNode):
     def __init__(
@@ -181,3 +208,13 @@ class IndexNode(CalculationNode):
             self.variable.is_valid(),
             all((a.is_valid() for a in self.arguments))
         ))
+
+    def translate(self, file: TextIO) -> None:
+        file.write('INDEX')
+        file.write(' ')
+        file.write(str(len(self.arguments) + 1))
+        file.write(' ')
+        self.variable.translate(file)
+        for arg in self.arguments:
+            file.write(' ')
+            arg.translate(file)

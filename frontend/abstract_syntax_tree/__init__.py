@@ -1,11 +1,11 @@
 # flake8: noqa F401
 from .ast_node import ASTNode
 from .operators import (
-    BinaryOperatorNode,
+    BinaryOperatorABCNode,
     MemberOperatorNode,
     AssignmentNode,
     IndexNode,
-    UnaryOperatorNode,
+    UnaryOperatorABCNode,
     OperatorCategory
 )
 from .classes.common import (
@@ -33,7 +33,6 @@ from .functions import (
 from .keywords import (
     BreakNode,
     ContinueNode,
-    DeductionNode,
     ReturnNode,
     ThisNode
 )

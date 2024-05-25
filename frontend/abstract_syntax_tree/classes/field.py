@@ -1,6 +1,6 @@
 from ..ast_node import ASTNode
 from ..ast_mixins import Usable
-from ..typing import TypeNode
+from ..typing import TypeNode, TextIO
 from .common import AccessTypeMixin
 
 
@@ -9,8 +9,6 @@ class ClassFieldDeclarationNode(ASTNode, AccessTypeMixin, Usable):
         self,
         _type: TypeNode,
         name: str,
-        operator: str | None,
-        value: ASTNode | None,
         access_type: str,
         static: bool,
         line: int,
@@ -19,8 +17,6 @@ class ClassFieldDeclarationNode(ASTNode, AccessTypeMixin, Usable):
         super().__init__(line, position)
         self.type = _type
         self.name = name
-        self.operator = operator
-        self.value = value
 
         self._access_type = access_type
         self.is_static = static
@@ -32,5 +28,11 @@ class ClassFieldDeclarationNode(ASTNode, AccessTypeMixin, Usable):
         return all((
             self.valid,
             self.type.is_valid(),
-            self.value.is_valid() if self.value else True
         ))
+
+    def translate(self, file: TextIO) -> None:
+        file.write('SET')
+        file.write(' ')
+        self.type.translate(file)
+        file.write(' ')
+        file.write(self.name)

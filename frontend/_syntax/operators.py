@@ -67,11 +67,11 @@ class Operator(CustomEnum):
     DELETE_INSTANCE = "delete"
 
     @staticmethod
-    def translate(op: str):
-        OPERATOR_NAMES = {
-            Operator.PLUS: "plus",
-            Operator.MINUS: "minus",
-            Operator.MULTIPLY: "mult",
+    def translate(op: str, n: int):
+        binary_operator_names = {
+            Operator.PLUS: "add",
+            Operator.MINUS: "sub",
+            Operator.MULTIPLY: "mul",
             Operator.DIVIDE: "div",
             Operator.MODULO: "mod",
             Operator.FLOOR_DIVIDE: "fdiv",
@@ -92,16 +92,47 @@ class Operator(CustomEnum):
             Operator.BITWISE_OR: "bor",
             Operator.BITWISE_RSHIFT: "brshift",
             Operator.BITWISE_LSHIFT: "blshift",
-            Operator.BITWISE_INVERSE: "binv",
 
-            Operator.MEMBERSHIP_OPERATOR: "lookup",
+            Operator.MEMBERSHIP_OPERATOR: "in",
+
+            Operator.AND: "and",
+            Operator.OR: "or",
+            Operator.XOR: "xor",
+
+
+            Operator.FULL_AND: "and!",
+            Operator.FULL_OR: "or!",
+            Operator.FULL_XOR: "xor",
+
+            Operator.TYPE_CAST: "cast",
+            Operator.NULL_COALESCE: "coalesce",
         }
 
-        return OPERATOR_NAMES[op].upper()
+        unary_operator_names = {
+            Operator.PLUS: "idempotate",
+            Operator.MINUS: "negate",
+
+            Operator.NOT: "not",
+            Operator.BITWISE_INVERSE: "binv",
+
+            Operator.NEW_INSTANCE: "alloc",
+            Operator.DELETE_INSTANCE: "free",
+
+            Operator.REFERENCE: "addr",
+            Operator.DEREFERENCE: "valof",
+
+            Operator.OBJECT_MEMBER_ACCESS: "ACCESS",
+            Operator.REFERENCE_MEMBER_ACCESS: "REFACCESS",
+        }
+
+        if n == 2:
+            return binary_operator_names[op].upper()
+        else:
+            return unary_operator_names[op].upper()
 
     @staticmethod
     def overloadable(op: str):
-        POSSIBLE_OVERLOAD_OPERATORS = [
+        possible_overload_operators = [
             Operator.PLUS,
             Operator.MINUS,
             Operator.MULTIPLY,
@@ -126,8 +157,7 @@ class Operator(CustomEnum):
 
             Operator.MEMBERSHIP_OPERATOR,
         ]
-        return op in POSSIBLE_OVERLOAD_OPERATORS
-
+        return op in possible_overload_operators
 
 
 class Assignment(CustomEnum):

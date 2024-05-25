@@ -47,9 +47,11 @@ class FunctionDefNode(ASTNode, Usable):
 
     def translate(self, file: TextIO) -> None:
         self.write_instruction(file, ['FUNCTION', ' ', self.function_name])
+        self.write_instruction(file, ['PARAMS_COUNT', ' ', str(len(self.parameters))])
         for arg in self.parameters:
             arg.translate(file)
             file.write('\n')
+        file.write('\n')
         self.function_body.translate(file)
         self.write_instruction(file, ['ENDFUNCTION', ' ', self.function_name])
 
@@ -78,6 +80,7 @@ class FunctionParameter(ASTNode, Usable):
         self.type.translate(file)
         file.write(' ')
         file.write(self.name)
+
 
 class FunctionCallNode(CalculationNode):
     def __init__(
@@ -118,4 +121,3 @@ class FunctionCallNode(CalculationNode):
         for argument in self.arguments:
             argument.translate(file)
             file.write(' ')
-        file.write('\n')

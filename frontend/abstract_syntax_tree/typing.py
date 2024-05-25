@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Union, TextIO
 
 from .identifiers import IdentifierNode
 from .ast_node import ASTNode
@@ -36,6 +36,9 @@ class TypeLiteral(ASTNode):
 
     def is_valid(self) -> bool:
         return self.valid
+
+    def translate(self, file: TextIO) -> None:
+        file.write(self.name)
 
 
 class TypeNode(ASTNode):
@@ -191,3 +194,24 @@ class TypeNode(ASTNode):
             self.type.is_valid(),
             all((a.is_valid() for a in self.arguments)) if self.arguments else True
         ))
+
+    def translate(self, file: TextIO) -> None:
+        if self.is_literal:
+            raise NotImplementedError
+
+        if self.is_constant:
+            file.write('FREEZE')
+            file.write(' ')
+        if self.is_nullable:
+            file.write('VOID')
+            file.write(' ')
+        if self.is_reference:
+            file.write('REF')
+            file.write(' ')
+
+        if isinstance(self.type, TypeLiteral):
+            self.type.translate(file)
+        else:
+            file.write('CLASSID')
+            file.write(' ')
+            file.write(self.type.name)

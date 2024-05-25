@@ -2,7 +2,7 @@ from enum import IntFlag
 
 from ._syntax.keywords import ClassModifierKeyword, Keyword
 from ._syntax.types_modifier import TypeModifier
-from ._syntax.operators import Assignment, Operator
+from ._syntax.operators import Operator
 
 try:
     import frontend.abstract_syntax_tree as AST
@@ -10,9 +10,6 @@ except ImportError:
     import abstract_syntax_tree as AST
 
 from .exceptions import ParsingException
-from .syntax import (
-    Operands
-)
 from .tokens import TokenType, Token
 from typing import Iterator, KeysView, ValuesView, NoReturn, Literal
 
@@ -237,7 +234,7 @@ class Parser(object):
                 statements.append(statement)
         return AST.ProgramNode(class_definitions, function_definitions, statements)
 
-    def parse_statement(self, context: ContextFlag) -> AST.ASTNode:
+    def parse_statement(self, context: ContextFlag, **kwargs) -> AST.ASTNode:
         """
         Parses any complete statement:
             - class, class methods, function definitions,
@@ -260,7 +257,7 @@ class Parser(object):
 
         # parse full scope
         if self.is_consumable(TokenType.BEGIN_OF_SCOPE):
-            return self.parse_scope(context)
+            return self.parse_scope(context, **kwargs)
 
         # if-elseif-else clause
         if self.is_consumable(TokenType.KEYWORD, Keyword.IF):
@@ -284,11 +281,11 @@ class Parser(object):
 
         # break
         if self.is_consumable(TokenType.KEYWORD, Keyword.BREAK):
-            return self.parse_full_break_statement(context)
+            return self.parse_full_break_statement(context, **kwargs)
 
         # continue
         if self.is_consumable(TokenType.KEYWORD, Keyword.CONTINUE):
-            return self.parse_full_continue_statement(context)
+            return self.parse_full_continue_statement(context, **kwargs)
 
         if self.is_consumable(TokenType.CLASS_KEYWORD):
             return self.parse_full_class_keywords(context)
@@ -484,7 +481,7 @@ class Parser(object):
         self.consume(TokenType.CLOSING_SQUARE_BRACKET)
         return arguments
 
-    def parse_scope(self, context: ContextFlag) -> AST.ScopeNode:
+    def parse_scope(self, context: ContextFlag, **kwargs) -> AST.ScopeNode:
         """
         Parse the scope, limited with braces
         :param context: parent scope context flag
@@ -503,7 +500,7 @@ class Parser(object):
         met_finalizer = False
 
         while self.current_token.type != TokenType.END_OF_SCOPE:
-            statement = self.parse_statement(current_context)
+            statement = self.parse_statement(current_context, **kwargs)
 
             # if parser did meet return or throw,
             # don't include further expressions into AST
@@ -584,12 +581,12 @@ class Parser(object):
         line, position = self.line_and_position_of_consumed_token()
 
         condition = self._parse_condition(context=current_context)
-        while_scope = self.parse_scope(context=current_context)
+        while_scope = self.parse_scope(context=current_context, loop=AST.WhileNode.INSTANCES)
         if self.is_consumable(expected_type=TokenType.END_OF_STATEMENT):
             self.consume(expected_type=TokenType.END_OF_STATEMENT)
         return AST.WhileNode(condition=condition, while_scope=while_scope, line=line, position=position)
 
-    def parse_full_break_statement(self, context: ContextFlag) -> AST.BreakNode:
+    def parse_full_break_statement(self, context: ContextFlag, **kwargs) -> AST.BreakNode:
         """
         Parses the break keyword statement.
         Doesn't modify the current context.
@@ -604,9 +601,14 @@ class Parser(object):
         self.consume(expected_type=TokenType.KEYWORD, expected_value=Keyword.BREAK)
         line, position = self.line_and_position_of_consumed_token()
         self.consume(expected_type=TokenType.END_OF_STATEMENT)
-        return AST.BreakNode(line=line, position=position)
 
-    def parse_full_continue_statement(self, context: ContextFlag) -> AST.ContinueNode:
+        loop = kwargs.get('loop')
+        if not loop:
+            raise NotImplementedError
+
+        return AST.BreakNode(loop=loop, line=line, position=position)
+
+    def parse_full_continue_statement(self, context: ContextFlag, **kwargs) -> AST.ContinueNode:
         """
         Parses the continue keyword statement.
         Doesn't modify the current context.
@@ -621,7 +623,13 @@ class Parser(object):
         self.consume(expected_type=TokenType.KEYWORD, expected_value=Keyword.CONTINUE)
         line, position = self.line_and_position_of_consumed_token()
         self.consume(expected_type=TokenType.END_OF_STATEMENT)
-        return AST.ContinueNode(line=line, position=position)
+
+        loop = kwargs.get('loop')
+        if not loop:
+            raise NotImplementedError
+
+        return AST.ContinueNode(loop=loop, line=line, position=position)
+
 
     def parse_full_function_definition(self, context: ContextFlag) \
             -> AST.FunctionDefNode | AST.ClassMethodDeclarationNode:
@@ -650,14 +658,19 @@ class Parser(object):
             return_type = self.parse_type_declaration(context=current_context)
             self.consume(expected_type=TokenType.CLOSING_SQUARE_BRACKET)
 
-        is_operator_overload = False
         if self.is_consumable(expected_type=TokenType.KEYWORD, expected_value=Keyword.OPERATOR):
             is_operator_overload = True
-            function_name = self._parse_operator_overload(context=current_context)
+            dct = {}
+            gen = self._parse_operator_overload(dct, context=current_context)
+            next(gen)
+            parameters = self._parse_function_parameters(context=current_context)
+            dct['n'] = len(parameters)
+            function_name = next(gen)
         else:
+            is_operator_overload = False
             function_name = self.consume(expected_type=TokenType.IDENTIFIER)
+            parameters = self._parse_function_parameters(context=current_context)
 
-        parameters = self._parse_function_parameters(context=current_context)
         function_body = self.parse_scope(context=current_context)
 
         if self.is_consumable(expected_type=TokenType.END_OF_STATEMENT):
@@ -707,7 +720,7 @@ class Parser(object):
         self.consume(expected_type=TokenType.CLOSING_PARENTHESIS)
         return parameters
 
-    def _parse_operator_overload(self, context: ContextFlag) -> str:
+    def _parse_operator_overload(self, dct: dict, context: ContextFlag) -> Iterator[str]:
         """
         Parses operator overloading declaration and returns mangled function name
         :param context:
@@ -721,16 +734,21 @@ class Parser(object):
             operator = self.consume(expected_type=TokenType.OPERATOR)
             if not Operator.overloadable(operator):
                 self.error(msg=f"Invalid operator for overload: {operator}")
-            else:
-                return f"$operator_{Operator.translate(operator)}"
+
+            yield
+            n: int = dct['n']
+
+            yield f"$operator_{Operator.translate(operator, n)}"
         elif self.is_consumable(expected_type=TokenType.OPENING_SQUARE_BRACKET):
             _ = self.consume(expected_type=TokenType.OPENING_SQUARE_BRACKET)
             _ = self.consume(expected_type=TokenType.CLOSING_SQUARE_BRACKET)
-            return "$operator_index"
+            yield
+            yield "$operator_index"
         elif self.is_consumable(expected_type=TokenType.OPENING_PARENTHESIS):
             _ = self.consume(expected_type=TokenType.OPENING_PARENTHESIS)
             _ = self.consume(expected_type=TokenType.CLOSING_PARENTHESIS)
-            return "$operator_call"
+            yield
+            yield "$operator_call"
         else:
             self.error(msg="Invalid operator to overload")
 
@@ -766,20 +784,20 @@ class Parser(object):
         identifier: str = self.consume(expected_type=TokenType.IDENTIFIER)
         line, position = self.line_and_position_of_consumed_token()
 
-        if self.is_consumable(expected_type=TokenType.GENERIC_ASSIGNMENT):
-            operator = self.consume(expected_type=TokenType.GENERIC_ASSIGNMENT)
-            expression_node = self.parse_assignment_expression(context=context)
-        else:
-            operator = None
-            expression_node = None
-
         if ContextFlag.strict_match(current_context=context, flag=ContextFlag.CLASS):
             result = AST.ClassFieldDeclarationNode(
-                _type=type_node, name=identifier, operator=operator, value=expression_node,
+                _type=type_node, name=identifier,
                 access_type=AST.AccessType.PROTECTED, static=False,
                 line=line, position=position
             )
         else:
+            if self.is_consumable(expected_type=TokenType.GENERIC_ASSIGNMENT):
+                operator = self.consume(expected_type=TokenType.GENERIC_ASSIGNMENT)
+                expression_node = self.parse_assignment_expression(context=context)
+            else:
+                operator = None
+                expression_node = None
+
             result = AST.VariableDeclarationNode(_type=type_node, name=identifier, operator=operator, value=expression_node, line=line, position=position)
 
         self.consume(expected_type=TokenType.END_OF_STATEMENT)
@@ -845,7 +863,7 @@ class Parser(object):
         else:
             self.error(msg="Invalid type declaration")
 
-    def parse_arithmetic_expression(self, context: ContextFlag) -> AST.BinaryOperatorNode | AST.ASTNode:
+    def parse_arithmetic_expression(self, context: ContextFlag) -> AST.BinaryOperatorABCNode | AST.ASTNode:
         return self.parse_logical_or_expression(context=context)
 
     def parse_assignment_expression(self, context: ContextFlag) -> AST.AssignmentNode | AST.ASTNode:
@@ -875,7 +893,7 @@ class Parser(object):
 
         return left_expr
 
-    def parse_logical_or_expression(self, context: ContextFlag) -> AST.BinaryOperatorNode | AST.ASTNode:
+    def parse_logical_or_expression(self, context: ContextFlag) -> AST.BinaryOperatorABCNode | AST.ASTNode:
         """
         Operator parser.
         Operator type: binary
@@ -892,14 +910,14 @@ class Parser(object):
             operator = self.consume(expected_type=TokenType.OPERATOR)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_logical_xor_expression(context=context)
-            left = AST.BinaryOperatorNode(
+            left = AST.BinaryOperatorABCNode(
                 category=AST.OperatorCategory.Logical,
                 left=left, operator=operator, right=right, line=line, position=position
             )
 
         return left
 
-    def parse_logical_xor_expression(self, context: ContextFlag) -> AST.BinaryOperatorNode | AST.ASTNode:
+    def parse_logical_xor_expression(self, context: ContextFlag) -> AST.BinaryOperatorABCNode | AST.ASTNode:
         """
         Operator parser.
         Operator type: binary
@@ -916,14 +934,14 @@ class Parser(object):
             operator = self.consume(expected_type=TokenType.OPERATOR)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_logical_and_expression(context=context)
-            left = AST.BinaryOperatorNode(
+            left = AST.BinaryOperatorABCNode(
                 category=AST.OperatorCategory.Logical,
                 left=left, operator=operator, right=right, line=line, position=position
             )
 
         return left
 
-    def parse_logical_and_expression(self, context: ContextFlag) -> AST.BinaryOperatorNode | AST.ASTNode:
+    def parse_logical_and_expression(self, context: ContextFlag) -> AST.BinaryOperatorABCNode | AST.ASTNode:
         """
         Operator parser.
         Operator type: binary
@@ -940,14 +958,14 @@ class Parser(object):
             operator = self.consume(expected_type=TokenType.OPERATOR)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_bitwise_or_expression(context=context)
-            left = AST.BinaryOperatorNode(
+            left = AST.BinaryOperatorABCNode(
                 category=AST.OperatorCategory.Logical,
                 left=left, operator=operator, right=right, line=line, position=position
             )
 
         return left
 
-    def parse_bitwise_or_expression(self, context: ContextFlag) -> AST.BinaryOperatorNode | AST.ASTNode:
+    def parse_bitwise_or_expression(self, context: ContextFlag) -> AST.BinaryOperatorABCNode | AST.ASTNode:
         """
         Operator parser.
         Operator type: binary
@@ -964,14 +982,14 @@ class Parser(object):
             operator = self.consume(expected_type=TokenType.OPERATOR)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_bitwise_xor_expression(context=context)
-            left = AST.BinaryOperatorNode(
+            left = AST.BinaryOperatorABCNode(
                 category=AST.OperatorCategory.Arithmetic,
                 left=left, operator=operator, right=right, line=line, position=position
             )
 
         return left
 
-    def parse_bitwise_xor_expression(self, context: ContextFlag) -> AST.BinaryOperatorNode | AST.ASTNode:
+    def parse_bitwise_xor_expression(self, context: ContextFlag) -> AST.BinaryOperatorABCNode | AST.ASTNode:
         """
         Operator parser.
         Operator type: binary
@@ -988,14 +1006,14 @@ class Parser(object):
             operator = self.consume(expected_type=TokenType.OPERATOR)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_bitwise_and_expression(context=context)
-            left = AST.BinaryOperatorNode(
+            left = AST.BinaryOperatorABCNode(
                 category=AST.OperatorCategory.Arithmetic,
                 left=left, operator=operator, right=right, line=line, position=position
             )
 
         return left
 
-    def parse_bitwise_and_expression(self, context: ContextFlag) -> AST.BinaryOperatorNode | AST.ASTNode:
+    def parse_bitwise_and_expression(self, context: ContextFlag) -> AST.BinaryOperatorABCNode | AST.ASTNode:
         """
         Operator parser.
         Operator type: binary
@@ -1012,14 +1030,14 @@ class Parser(object):
             operator = self.consume(expected_type=TokenType.OPERATOR)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_equality_expression(context=context)
-            left = AST.BinaryOperatorNode(
+            left = AST.BinaryOperatorABCNode(
                 category=AST.OperatorCategory.Arithmetic,
                 left=left, operator=operator, right=right, line=line, position=position
             )
 
         return left
 
-    def parse_equality_expression(self, context: ContextFlag) -> AST.BinaryOperatorNode | AST.ASTNode:
+    def parse_equality_expression(self, context: ContextFlag) -> AST.BinaryOperatorABCNode | AST.ASTNode:
         """
         Operator parser.
         Operator type: binary
@@ -1045,7 +1063,7 @@ class Parser(object):
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_comparison_expression(context=context)
 
-            statements.append(AST.BinaryOperatorNode(
+            statements.append(AST.BinaryOperatorABCNode(
                 category=AST.OperatorCategory.Comparison,
                 left=left, operator=operator, right=right, line=line, position=position
             ))
@@ -1056,7 +1074,7 @@ class Parser(object):
         return self.__parse_chained_comparisons(statements=statements)
 
     def parse_comparison_expression(self, context: ContextFlag) \
-            -> AST.BinaryOperatorNode | AST.ASTNode:
+            -> AST.BinaryOperatorABCNode | AST.ASTNode:
         """
         Operator parser.
         Operator type: binary
@@ -1082,7 +1100,7 @@ class Parser(object):
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_membership_operator_expression(context)
 
-            statements.append(AST.BinaryOperatorNode(
+            statements.append(AST.BinaryOperatorABCNode(
                 category=AST.OperatorCategory.Comparison,
                 left=left, operator=operator, right=right, line=line, position=position
             ))
@@ -1093,7 +1111,7 @@ class Parser(object):
         return self.__parse_chained_comparisons(statements=statements)
 
     @staticmethod
-    def __parse_chained_comparisons(statements: list[AST.BinaryOperatorNode]) -> AST.BinaryOperatorNode:
+    def __parse_chained_comparisons(statements: list[AST.BinaryOperatorABCNode]) -> AST.BinaryOperatorABCNode:
         r"""
         Parse the chain of comparisons as the "and"-operator based AST tree
         with right-to-left associativity (right branch is more "leafy")
@@ -1113,7 +1131,7 @@ class Parser(object):
             return statements[0]
 
         statements_count = len(statements)
-        root = AST.BinaryOperatorNode(
+        root = AST.BinaryOperatorABCNode(
             category=AST.OperatorCategory.Logical,
             left=statements[0], operator=Operator.AND, right=None)  # type: ignore
         curr = root
@@ -1121,7 +1139,7 @@ class Parser(object):
             if index == 0:
                 continue
             elif index != statements_count - 1:
-                new_node = AST.BinaryOperatorNode(
+                new_node = AST.BinaryOperatorABCNode(
                     category=AST.OperatorCategory.Logical,
                     left=statement, operator=Operator.AND, right=None)  # type: ignore
                 curr.right = new_node
@@ -1130,7 +1148,7 @@ class Parser(object):
                 curr.right = statement
         return root
 
-    def parse_membership_operator_expression(self, context: ContextFlag) -> AST.BinaryOperatorNode | AST.ASTNode:
+    def parse_membership_operator_expression(self, context: ContextFlag) -> AST.BinaryOperatorABCNode | AST.ASTNode:
         """
         Operator parser.
         Operator type: binary
@@ -1147,14 +1165,14 @@ class Parser(object):
             operator = self.consume(expected_type=TokenType.OPERATOR, expected_value=Operator.MEMBERSHIP_OPERATOR)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_bitwise_shift_expression(context=context)
-            left = AST.BinaryOperatorNode(
+            left = AST.BinaryOperatorABCNode(
                 category=AST.OperatorCategory.Comparison,
                 left=left, operator=operator, right=right, line=line, position=position
             )
 
         return left
 
-    def parse_bitwise_shift_expression(self, context: ContextFlag) -> AST.BinaryOperatorNode | AST.ASTNode:
+    def parse_bitwise_shift_expression(self, context: ContextFlag) -> AST.BinaryOperatorABCNode | AST.ASTNode:
         """
         Operator parser.
         Operator type: binary
@@ -1174,14 +1192,14 @@ class Parser(object):
             operator = self.consume(expected_type=TokenType.OPERATOR)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_additive_expression(context=context)
-            left = AST.BinaryOperatorNode(
+            left = AST.BinaryOperatorABCNode(
                 category=AST.OperatorCategory.Comparison,
                 left=left, operator=operator, right=right, line=line, position=position
             )
 
         return left
 
-    def parse_additive_expression(self, context: ContextFlag) -> AST.BinaryOperatorNode | AST.ASTNode:
+    def parse_additive_expression(self, context: ContextFlag) -> AST.BinaryOperatorABCNode | AST.ASTNode:
         """
         Operator parser.
         Operator type: binary
@@ -1198,14 +1216,14 @@ class Parser(object):
             operator = self.consume(expected_type=TokenType.OPERATOR)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_multiplicative_expression(context=context)
-            left = AST.BinaryOperatorNode(
+            left = AST.BinaryOperatorABCNode(
                 category=AST.OperatorCategory.Arithmetic,
                 left=left, operator=operator, right=right, line=line, position=position
             )
 
         return left
 
-    def parse_multiplicative_expression(self, context: ContextFlag) -> AST.BinaryOperatorNode | AST.ASTNode:
+    def parse_multiplicative_expression(self, context: ContextFlag) -> AST.BinaryOperatorABCNode | AST.ASTNode:
         """
         Operator parser.
         Operator type: binary
@@ -1227,7 +1245,7 @@ class Parser(object):
             operator = self.consume(expected_type=TokenType.OPERATOR)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_arithmetic_unary_expression(context=context)
-            left = AST.BinaryOperatorNode(
+            left = AST.BinaryOperatorABCNode(
                 category=AST.OperatorCategory.Arithmetic,
                 left=left, operator=operator, right=right, line=line, position=position
             )
@@ -1236,7 +1254,7 @@ class Parser(object):
 
     def parse_arithmetic_unary_expression(
             self, context: ContextFlag
-            ) -> AST.UnaryOperatorNode | AST.BinaryOperatorNode | AST.ASTNode:
+            ) -> AST.UnaryOperatorABCNode | AST.BinaryOperatorABCNode | AST.ASTNode:
         """
         Operator parser.
         Operator type: unary
@@ -1255,14 +1273,14 @@ class Parser(object):
             operator = self.consume(expected_type=TokenType.OPERATOR)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_power_expression(context=context)
-            return AST.UnaryOperatorNode(
+            return AST.UnaryOperatorABCNode(
                 category=AST.OperatorCategory.Arithmetic,
                 operator=operator, expression=right, line=line, position=position
             )
         else:
             return self.parse_power_expression(context=context)
 
-    def parse_power_expression(self, context: ContextFlag) -> AST.BinaryOperatorNode | AST.ASTNode:
+    def parse_power_expression(self, context: ContextFlag) -> AST.BinaryOperatorABCNode | AST.ASTNode:
         """
         Operator parser.
         Operator type: binary
@@ -1287,13 +1305,13 @@ class Parser(object):
         if len(right_expressions) == 1:
             return left
 
-        result = AST.BinaryOperatorNode(
+        result = AST.BinaryOperatorABCNode(
             category=AST.OperatorCategory.Arithmetic,
             left=right_expressions[-2], operator=Operator.POWER, right=right_expressions[-1],
             line=operators_positions[-1][0], position=operators_positions[-1][1]
         )
         for _left, (_line, _position) in reversed(list(zip(right_expressions[:-2], operators_positions[:-1]))):
-            result = AST.BinaryOperatorNode(
+            result = AST.BinaryOperatorABCNode(
                 category=AST.OperatorCategory.Arithmetic,
                 left=_left, operator=Operator.POWER, right=result,
                 line=_line, position=_position
@@ -1304,7 +1322,7 @@ class Parser(object):
     # TODO: reference/dereference
     def parse_other_unary_expression(
             self, context: ContextFlag
-            ) -> AST.UnaryOperatorNode | AST.ASTNode | AST.MemberOperatorNode:
+            ) -> AST.UnaryOperatorABCNode | AST.ASTNode | AST.MemberOperatorNode:
         """
         Operator parser.
         Operator type: unary
@@ -1319,7 +1337,7 @@ class Parser(object):
             operator = self.consume(expected_type=TokenType.OPERATOR)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_dynamic_memory_allocation(context=context)
-            return AST.UnaryOperatorNode(
+            return AST.UnaryOperatorABCNode(
                 category=AST.OperatorCategory.Logical,
                 operator=operator, expression=right, line=line, position=position
             )
@@ -1327,7 +1345,7 @@ class Parser(object):
             operator = self.consume(expected_type=TokenType.OPERATOR)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_identifier(context=context, pure_identifier=True)
-            return AST.UnaryOperatorNode(
+            return AST.UnaryOperatorABCNode(
                 category=AST.OperatorCategory.Reference,
                 operator=operator, expression=right, line=line, position=position
             )
@@ -1336,7 +1354,7 @@ class Parser(object):
 
     def parse_dynamic_memory_allocation(
             self, context: ContextFlag
-            ) -> AST.UnaryOperatorNode | AST.ASTNode | AST.MemberOperatorNode:
+            ) -> AST.UnaryOperatorABCNode | AST.ASTNode | AST.MemberOperatorNode:
         """
         Operator parser.
         Operator type: unary
@@ -1351,7 +1369,7 @@ class Parser(object):
             operator = self.consume(expected_type=TokenType.OPERATOR, expected_value=Operator.NEW_INSTANCE)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_base_type(context=context, as_constructor=True)
-            return AST.UnaryOperatorNode(
+            return AST.UnaryOperatorABCNode(
                 category=AST.OperatorCategory.Allocation,
                 operator=operator, expression=right, line=line, position=position
             )
@@ -1359,7 +1377,7 @@ class Parser(object):
             operator = self.consume(expected_type=TokenType.OPERATOR, expected_value=Operator.DELETE_INSTANCE)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_identifier(context=context, pure_identifier=True)
-            return AST.UnaryOperatorNode(
+            return AST.UnaryOperatorABCNode(
                 category=AST.OperatorCategory.Allocation,
                 operator=operator, expression=right, line=line, position=position
             )
@@ -1411,11 +1429,6 @@ class Parser(object):
             value = self.consume(expected_type=TokenType.FLOAT_LITERAL)
             line, position = self.line_and_position_of_consumed_token()
             return AST.FloatLiteralNode(value=value, line=line, position=position)
-
-        if self.is_consumable(expected_type=TokenType.OPERAND, expected_value=Operands.DEDUCTION):
-            self.consume(expected_type=TokenType.OPERAND, expected_value=Operands.DEDUCTION)
-            line, position = self.line_and_position_of_consumed_token()
-            return AST.DeductionNode(line=line, position=position)
 
         if self.is_consumable(expected_type=TokenType.IDENTIFIER):
             return self.parse_identifier(context=context)
@@ -1592,7 +1605,7 @@ class Parser(object):
         else:
             self.error(msg="List/keymap literal cannot have both keymap and non-keymap expressions")
 
-    def parse_arithmetic_expression_with_keymaps(self, context: ContextFlag) -> AST.KeymapElementNode | AST.BinaryOperatorNode | AST.ASTNode:
+    def parse_arithmetic_expression_with_keymaps(self, context: ContextFlag) -> AST.KeymapElementNode | AST.BinaryOperatorABCNode | AST.ASTNode:
         # absent associativity
         left = self.parse_arithmetic_expression(context=context)
 
