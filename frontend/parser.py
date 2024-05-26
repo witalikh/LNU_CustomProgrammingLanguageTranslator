@@ -2,7 +2,8 @@ from enum import IntFlag
 
 from ._syntax.keywords import ClassModifierKeyword, Keyword
 from ._syntax.types_modifier import TypeModifier
-from ._syntax.operators import Operator
+from ._syntax.operators import Operator, Comparison, OperatorMethods
+from .abstract_syntax_tree import MemberOperatorNode
 
 try:
     import frontend.abstract_syntax_tree as AST
@@ -139,7 +140,7 @@ class Parser(object):
             # token type mismatch => error
             if token.type != expected_type:
                 msg = (f"Expected token of type {expected_type}, "
-                       f"but got {token.type}")
+                       f"but got {token.type} ({token.value})")
 
             # token value is not among collection of the expected ones => error
             elif isinstance(expected_value, (tuple, list, set, ValuesView, KeysView)):
@@ -342,7 +343,9 @@ class Parser(object):
 
         # end of loop
         # it's either method OR field. Nothing else!
-        if self.is_consumable(TokenType.KEYWORD, Keyword.FUNCTION):
+        if self.is_consumable(
+                TokenType.KEYWORD,
+                (Keyword.FUNCTION, Keyword.CONSTRUCTOR, Keyword.DESTRUCTOR, Keyword.OPERATOR)):
             result = self.parse_full_function_definition(context)
         else:
             if polymorphic_modifier is not None:
@@ -594,19 +597,27 @@ class Parser(object):
         :param context: scope context flag. Should be loop one
         :return: AST.BreakNode instance
         """
-        # scope check: needs loop
-        if not ContextFlag.match(current_context=context, flag=ContextFlag.LOOP):
-            self.error(msg=f"Unexpected token {self.current_token.value} out of loop.")
 
         self.consume(expected_type=TokenType.KEYWORD, expected_value=Keyword.BREAK)
         line, position = self.line_and_position_of_consumed_token()
+
+        expression = None
+        if not self.is_consumable(expected_type=TokenType.END_OF_STATEMENT):
+            expression = self.parse_arithmetic_expression(context=context)
         self.consume(expected_type=TokenType.END_OF_STATEMENT)
 
-        loop = kwargs.get('loop')
-        if not loop:
-            raise NotImplementedError
+        # scope check: needs loop
+        if expression is None:
+            if not ContextFlag.match(current_context=context, flag=ContextFlag.LOOP):
+                self.error(msg=f"Unexpected token {self.prev_token.value} out of loop.")
 
-        return AST.BreakNode(loop=loop, line=line, position=position)
+            loop = kwargs.get('loop')
+            if not loop:
+                raise NotImplementedError
+
+            return AST.BreakNode(loop=loop, line=line, position=position)
+        else:
+            return AST.BreakNode(error=expression, line=line, position=position)
 
     def parse_full_continue_statement(self, context: ContextFlag, **kwargs) -> AST.ContinueNode:
         """
@@ -616,20 +627,26 @@ class Parser(object):
         :param context: scope context flag. Should be loop one.
         :return: AST.ContinueNode instance
         """
-        # scope check: needs loop
-        if not ContextFlag.match(current_context=context, flag=ContextFlag.LOOP):
-            self.error(msg=f"Unexpected token {self.current_token.value} out of loop.")
-
         self.consume(expected_type=TokenType.KEYWORD, expected_value=Keyword.CONTINUE)
         line, position = self.line_and_position_of_consumed_token()
+
+        expression = None
+        if not self.is_consumable(expected_type=TokenType.END_OF_STATEMENT):
+            expression = self.parse_arithmetic_expression(context=context)
         self.consume(expected_type=TokenType.END_OF_STATEMENT)
 
-        loop = kwargs.get('loop')
-        if not loop:
-            raise NotImplementedError
+        if not expression:
+            # scope check: needs loop
+            if not ContextFlag.match(current_context=context, flag=ContextFlag.LOOP):
+                self.error(msg=f"Unexpected token {self.current_token.value} out of loop.")
 
-        return AST.ContinueNode(loop=loop, line=line, position=position)
+            loop = kwargs.get('loop')
+            if not loop:
+                raise NotImplementedError
 
+            return AST.ContinueNode(loop=loop, line=line, position=position)
+        else:
+            return AST.ContinueNode(error=expression, line=line, position=position)
 
     def parse_full_function_definition(self, context: ContextFlag) \
             -> AST.FunctionDefNode | AST.ClassMethodDeclarationNode:
@@ -649,16 +666,30 @@ class Parser(object):
         # denote function for inner scopes
         current_context = ContextFlag.add(current_context=context, flag=ContextFlag.FUNCTION)
 
-        self.consume(expected_type=TokenType.KEYWORD, expected_value=Keyword.FUNCTION)
+        is_constructor = False
+        is_destructor = False
+        if self.is_consumable(TokenType.KEYWORD, Keyword.FUNCTION):
+            self.consume(expected_type=TokenType.KEYWORD, expected_value=Keyword.FUNCTION)
+        elif self.is_consumable(TokenType.KEYWORD, Keyword.CONSTRUCTOR):
+            is_constructor = True
+            self.consume(expected_type=TokenType.KEYWORD, expected_value=Keyword.CONSTRUCTOR)
+        else:
+            is_destructor = True
+            self.consume(expected_type=TokenType.KEYWORD, expected_value=Keyword.CONSTRUCTOR)
         line, position = self.line_and_position_of_consumed_token()
+        is_constructor_or_destructor = is_constructor or is_destructor
+
+        if is_constructor_or_destructor and not ContextFlag.match(current_context, ContextFlag.CLASS):
+            self.error("Unexpected constructor/destructor definition in global context.")
 
         return_type = None
-        if self.is_consumable(expected_type=TokenType.OPENING_SQUARE_BRACKET):
+        if not is_constructor_or_destructor and self.is_consumable(expected_type=TokenType.OPENING_SQUARE_BRACKET):
             self.consume(expected_type=TokenType.OPENING_SQUARE_BRACKET)
             return_type = self.parse_type_declaration(context=current_context)
             self.consume(expected_type=TokenType.CLOSING_SQUARE_BRACKET)
 
-        if self.is_consumable(expected_type=TokenType.KEYWORD, expected_value=Keyword.OPERATOR):
+        is_operator_overload = False
+        if not is_constructor_or_destructor and self.is_consumable(expected_type=TokenType.KEYWORD, expected_value=Keyword.OPERATOR):
             is_operator_overload = True
             dct = {}
             gen = self._parse_operator_overload(dct, context=current_context)
@@ -666,9 +697,16 @@ class Parser(object):
             parameters = self._parse_function_parameters(context=current_context)
             dct['n'] = len(parameters)
             function_name = next(gen)
-        else:
-            is_operator_overload = False
+        elif not is_constructor_or_destructor:
             function_name = self.consume(expected_type=TokenType.IDENTIFIER)
+            parameters = self._parse_function_parameters(context=current_context)
+        elif is_destructor:
+            function_name = "$destructor"
+            parameters = self._parse_function_parameters(context=current_context)
+            if len(parameters) > 0:
+                self.error("Destructor cannot have parameters!.")
+        else:
+            function_name = "$constructor"
             parameters = self._parse_function_parameters(context=current_context)
 
         function_body = self.parse_scope(context=current_context)
@@ -682,6 +720,8 @@ class Parser(object):
                 function_name=function_name,
                 parameters=parameters,
                 function_body=function_body,
+                is_constructor=is_constructor,
+                is_destructor=is_destructor,
                 access_type=AST.AccessType.PUBLIC,
                 static=False,
                 virtual=False,
@@ -732,13 +772,13 @@ class Parser(object):
         _ = self.consume(expected_type=TokenType.KEYWORD, expected_value=Keyword.OPERATOR)
         if self.is_consumable(expected_type=TokenType.OPERATOR):
             operator = self.consume(expected_type=TokenType.OPERATOR)
-            if not Operator.overloadable(operator):
+            if not OperatorMethods.overloadable(operator):
                 self.error(msg=f"Invalid operator for overload: {operator}")
 
             yield
             n: int = dct['n']
 
-            yield f"$operator_{Operator.translate(operator, n)}"
+            yield f"$operator_{OperatorMethods.translate(operator, n)}"
         elif self.is_consumable(expected_type=TokenType.OPENING_SQUARE_BRACKET):
             _ = self.consume(expected_type=TokenType.OPENING_SQUARE_BRACKET)
             _ = self.consume(expected_type=TokenType.CLOSING_SQUARE_BRACKET)
@@ -1052,14 +1092,13 @@ class Parser(object):
         left = self.parse_comparison_expression(context=context)
 
         statements = []
-        while self.is_consumable(expected_type=TokenType.OPERATOR, expected_value=(
-            Operator.EQUAL,
-            Operator.NOT_EQUAL,
-            Operator.STRICT_EQUAL,
-            Operator.NOT_STRICT_EQUAL,
+        while self.is_consumable(expected_type=TokenType.COMPARISON, expected_value=(
+            Comparison.EQUAL,
+            Comparison.NOT_EQUAL,
+            Comparison.STRICT_EQUAL,
+            Comparison.NOT_STRICT_EQUAL,
         )):
-
-            operator = self.consume(expected_type=TokenType.OPERATOR)
+            operator = self.consume(expected_type=TokenType.COMPARISON)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_comparison_expression(context=context)
 
@@ -1090,13 +1129,13 @@ class Parser(object):
         statements = []
         left = self.parse_membership_operator_expression(context=context)
 
-        while self.is_consumable(expected_type=TokenType.OPERATOR, expected_value=(
-            Operator.LESSER_OR_EQUAL,
-            Operator.GREATER_OR_EQUAL,
-            Operator.LESSER,
-            Operator.GREATER,
+        while self.is_consumable(expected_type=TokenType.COMPARISON, expected_value=(
+            Comparison.LESSER_OR_EQUAL,
+            Comparison.GREATER_OR_EQUAL,
+            Comparison.LESSER,
+            Comparison.GREATER,
         )):
-            operator = self.consume(expected_type=TokenType.OPERATOR)
+            operator = self.consume(expected_type=TokenType.COMPARISON)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_membership_operator_expression(context)
 
@@ -1161,8 +1200,8 @@ class Parser(object):
         """
         left = self.parse_bitwise_shift_expression(context=context)
 
-        if self.is_consumable(expected_type=TokenType.OPERATOR, expected_value=Operator.MEMBERSHIP_OPERATOR):
-            operator = self.consume(expected_type=TokenType.OPERATOR, expected_value=Operator.MEMBERSHIP_OPERATOR)
+        if self.is_consumable(expected_type=TokenType.COMPARISON, expected_value=Comparison.MEMBERSHIP_OPERATOR):
+            operator = self.consume(expected_type=TokenType.COMPARISON, expected_value=Comparison.MEMBERSHIP_OPERATOR)
             line, position = self.line_and_position_of_consumed_token()
             right = self.parse_bitwise_shift_expression(context=context)
             left = AST.BinaryOperatorABCNode(
@@ -1382,35 +1421,9 @@ class Parser(object):
                 operator=operator, expression=right, line=line, position=position
             )
         else:
-            return self.parse_member_access(context=context)
+            return self.parse_primary_expression(context=context)  # not sure
 
-    def parse_member_access(self, context: ContextFlag) -> AST.ASTNode | AST.MemberOperatorNode:
-        """
-        Operator parser.
-        Operator type: binary
-        Precedence: 17 (highest)
-        Associativity: left to right
-        Tokens: . ->
-        :param context: scope context flag
-        :return: Member operator node if class member operators are present,
-        otherwise anything the primary parser will return.
-        """
-        left = self.parse_primary_expression(context=context)
-
-        while self.is_consumable(expected_type=TokenType.OPERATOR, expected_value=(
-            Operator.OBJECT_MEMBER_ACCESS,
-            Operator.REFERENCE_MEMBER_ACCESS,
-        )):
-            operator = self.consume(expected_type=TokenType.OPERATOR)
-            line, position = self.line_and_position_of_consumed_token()
-            right = self.parse_primary_expression(context=context)
-            left = AST.MemberOperatorNode(
-                class_object=left,
-                operator=operator, member=right, line=line, position=position
-            )
-        return left
-
-    # TODO: this keyword, string adequate parser, comments, refactor it into methods ...
+    # TODO: string adequate parser, comments, refactor it into methods ...
     def parse_primary_expression(self, context: ContextFlag) -> AST.ASTNode:
         if self.is_consumable(expected_type=(
             TokenType.DECIMAL_INTEGER_LITERAL,
@@ -1431,7 +1444,7 @@ class Parser(object):
             return AST.FloatLiteralNode(value=value, line=line, position=position)
 
         if self.is_consumable(expected_type=TokenType.IDENTIFIER):
-            return self.parse_identifier(context=context)
+            return self.parse_identifier(context=context, pure_identifier=False)
 
         if self.is_consumable(expected_type=TokenType.STRING_LITERAL):
             return self.parse_string()
@@ -1505,7 +1518,8 @@ class Parser(object):
 
         _ = self.consume(expected_type=TokenType.KEYWORD, expected_value=Keyword.THIS)
         line, position = self.line_and_position_of_consumed_token()
-        return AST.ThisNode(line=line, position=position)
+        previous_result = AST.ThisNode(line=line, position=position)
+        return self._parse_indexation_or_function_calls_if_exist(previous_result, context)
 
     def parse_identifier(
         self,
@@ -1526,32 +1540,42 @@ class Parser(object):
         identifier = self.consume(expected_type=TokenType.IDENTIFIER)
         line, position = self.line_and_position_of_consumed_token()
         previous_result = AST.IdentifierNode(name=identifier, line=line, position=position)
-        return self._parse_indexation_or_function_calls_if_exist(node=previous_result, context=context, pure_identifier=pure_identifier)
+        if pure_identifier:
+            return previous_result
+        return self._parse_indexation_or_function_calls_if_exist(node=previous_result, context=context)
 
-    def _parse_indexation_or_function_calls_if_exist(self, node, context: ContextFlag, pure_identifier: bool = False):
-        token = self.current_token
-        if token.type == TokenType.OPENING_SQUARE_BRACKET:
-            # if pure_identifier:
-            #     self.error(f"Unexpected token: {self.current_token.value}")
-            return self._parse_indexation_call(identifier=node, context=context)
-        elif token.type == TokenType.OPENING_PARENTHESIS:
-            # if pure_identifier:
-            #     self.error(f"Unexpected token: {self.current_token.value}")
-            return self._parse_function_call(identifier=node, context=context)
-        else:
-            return node
+    def _parse_indexation_or_function_calls_if_exist(self, node, context: ContextFlag):
+        node = node
+        while (
+            self.is_consumable(TokenType.OPENING_SQUARE_BRACKET) or
+            self.is_consumable(TokenType.OPENING_PARENTHESIS) or
+            self.is_consumable(TokenType.OPERATOR, (Operator.OBJECT_MEMBER_ACCESS, Operator.REFERENCE_MEMBER_ACCESS))
+        ):
+            token = self.current_token
+            if token.type == TokenType.OPERATOR:
+                node = self._parse_membership_operator(identifier=node, context=context)
+            elif token.type == TokenType.OPENING_SQUARE_BRACKET:
+                node = self._parse_indexation_call(identifier=node, context=context)
+            elif token.type == TokenType.OPENING_PARENTHESIS:
+                node = self._parse_function_call(identifier=node, context=context)
+
+        return node
 
     def _parse_function_call(self, identifier, context: ContextFlag):
         line, position = self.line_and_position_of_consumed_token()
         arguments = self.__parse_parentheses_content(context)
-        result = AST.FunctionCallNode(identifier=identifier, arguments=arguments, line=line, position=position)
-        return self._parse_indexation_or_function_calls_if_exist(node=result, context=context)
+        return AST.FunctionCallNode(identifier=identifier, arguments=arguments, line=line, position=position)
 
     def _parse_indexation_call(self, identifier, context: ContextFlag):
         line, position = self.line_and_position_of_consumed_token()
         arguments = self.__parse_square_bracket_content(allow_keymaps=False, context=context)
-        result = AST.IndexNode(variable=identifier, arguments=arguments, line=line, position=position)
-        return self._parse_indexation_or_function_calls_if_exist(node=result, context=context)
+        return AST.IndexNode(variable=identifier, arguments=arguments, line=line, position=position)
+
+    def _parse_membership_operator(self, identifier, context: ContextFlag):
+        op = self.consume(expected_type=TokenType.OPERATOR)
+        line, position = self.line_and_position_of_consumed_token()
+        arguments = self.parse_identifier(context, True)
+        return AST.MemberOperatorNode(identifier, op, arguments, line=line, position=position)
 
     def __parse_square_bracket_content(self, allow_keymaps: bool, context: ContextFlag) -> list[AST.ASTNode]:
 
@@ -1605,7 +1629,7 @@ class Parser(object):
         else:
             self.error(msg="List/keymap literal cannot have both keymap and non-keymap expressions")
 
-    def parse_arithmetic_expression_with_keymaps(self, context: ContextFlag) -> AST.KeymapElementNode | AST.BinaryOperatorABCNode | AST.ASTNode:
+    def parse_arithmetic_expression_with_keymaps(self, context: ContextFlag) -> AST.KeymapElementNode | AST.BinaryOperatorABCNode:
         # absent associativity
         left = self.parse_arithmetic_expression(context=context)
 

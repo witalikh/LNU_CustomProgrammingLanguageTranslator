@@ -1,3 +1,5 @@
+from typing import TextIO
+
 from ..ast_node import ASTNode
 
 
@@ -38,3 +40,6 @@ class GenericParameterNode(ASTNode):
 
     def is_valid(self) -> bool:
         return self.valid
+
+    def translate(self, file: TextIO, **kwargs) -> None:
+        raise ValueError("Not translateable")

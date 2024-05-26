@@ -5,7 +5,7 @@ from frontend.lexer import Lexer
 from frontend.syntax import RULES
 from frontend.parser import Parser
 from frontend.type_checking.entrypoint import type_check_program
-from frontend.desugaring.main import desugar_ast_tree
+# from frontend.desugaring.main import desugar_ast_tree
 
 
 def scenario_1() -> None:
@@ -134,20 +134,22 @@ Main();
 
 def scenario_4():
     code_example = (r"""
-    class my_class{
-        public integer x;
-        public static function[my_class] operator + (my_class x, integer y){
-            x.x := y;
-        }
+class my_class{
+    public integer x;
+    public constructor(integer x){
+        this.x := x;
     }
-    my_class xr;
-    # xr[5];
-    xr := xr + 1;
 
-    # xr := new my_class[integer]("Hello");
-    array[integer] yyyx := [1, 2, 3, 4];
-    integer z := 7738;
-    # z := 8925.2;
+    public static function[my_class] operator + (my_class x, integer y){
+        return new my_class(x.x + y);
+    }
+}
+integer x := 11;
+my_class xr := new my_class(x);
+xr := xr + 1;
+
+array[integer] yyyx := [1, 2, 3, 4] + [5, 6, 7, 8];
+integer z := 7738;
     """)
 
     lexer = Lexer(RULES)
@@ -158,13 +160,34 @@ def scenario_4():
     print(type_check_program(x))
     print("Entire program valid:", x.is_valid())
 
-    desugar_ast_tree(x)
+    # desugar_ast_tree(x)
 
-    print(x)
+    # print(x)
+    with open("fuck2.out", "w") as f:
+        x.translate(f)
+
+
+def scenario_5():
+    with open("code_example.itchy", "r") as f:
+        code_example = f.read()
+
+    lexer = Lexer(RULES)
+    lexemes_iter = lexer.scan(code_example)
+
+    parser = Parser(lexemes_iter)
+    x = parser.parse()
+    print(type_check_program(x))
+    print("Entire program valid:", x.is_valid())
+
+    # desugar_ast_tree(x)
+
+    # print(x)
+    with open("fuck3.out", "w") as f:
+        x.translate(f)
 
 
 if __name__ == '__main__':
-    scenario_1()
+    scenario_5()
 
 
 # Program

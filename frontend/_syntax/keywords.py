@@ -18,6 +18,9 @@ class Keyword(CustomEnum):
     # OOP
     CLASS = "class"
     THIS = "this"
+    CONSTRUCTOR = "constructor"
+    DESTRUCTOR = "destructor"
+
     OPERATOR = "operator"
     TYPE = "type"  # considered as keyword for generic params
 

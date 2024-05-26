@@ -9,7 +9,6 @@ from .._overloads import validate_overloaded_function_definitions
 from .._scope import validate_scope
 
 from .._helpers_function import instantiate_environment_from_function_parameters
-from .._type_get import check_arithmetic_expression, match_types
 
 
 def validate_all_class_definitions() -> bool:
@@ -124,19 +123,6 @@ def _flat_check_field_types(
     valid_field_types = True
     for f in concrete_class.all_fields_definitions:
         valid_type = validate_type(f.type, concrete_class.generic_params)
-
-        if f.value is not None:
-            # TODO: for defaults, no other variable is used
-            is_valid, expr_type = check_arithmetic_expression(f.value, {})
-            if not is_valid:
-                valid_type = False
-
-            if not match_types(expr_type, f.type):
-                valid_type = False
-                error_logger.add(
-                    f.location,
-                    f"Default field value type mismatch: {expr_type.name} detected instead of {f.type.name}"
-                )
 
         # Validation end: ClassFieldDeclarationNode
         f.valid = valid_type

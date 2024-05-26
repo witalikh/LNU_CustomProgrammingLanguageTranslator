@@ -1,7 +1,6 @@
 from ..abstract_syntax_tree import TypeNode
 
 
-
 def mangle_typenode(type_node: TypeNode) -> None:
     """
     Standardized type node name mangler for every case in desugaring stage

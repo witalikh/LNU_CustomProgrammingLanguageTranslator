@@ -22,9 +22,9 @@ class ScopeNode(ASTNode):
             all((v.is_valid() for v in self.local_variables))
         ))
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         for statement in self.statements:
-            statement.translate(file)
+            statement.translate(file, **kwargs)
             file.write('\n')
 
         for local_variable in self.local_variables:

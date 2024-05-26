@@ -24,7 +24,7 @@ class StringLiteralNode(LiteralNode):
         super().__init__(line=line, position=position)
         self.value = value
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         file.write(self.value)
 
 
@@ -33,7 +33,7 @@ class ByteLiteralNode(LiteralNode):
         super().__init__(line=line, position=position)
         self.value = value
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         file.write(self.value)
 
 
@@ -42,7 +42,7 @@ class ByteStringLiteralNode(LiteralNode):
         super().__init__(line=line, position=position)
         self.value = value
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         file.write(self.value)
 
 
@@ -51,7 +51,7 @@ class CharLiteralNode(LiteralNode):
         super().__init__(line=line, position=position)
         self.value = value
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         file.write(self.value)
 
 
@@ -60,17 +60,17 @@ class BooleanLiteralNode(LiteralNode):
         super().__init__(line, position)
         self.value = value
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         file.write(self.value)
 
 
 class NullLiteralNode(LiteralNode):
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         file.write('NULL')
 
 
 class UndefinedLiteralNode(LiteralNode):
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         file.write('UNDEFINED')
 
 
@@ -85,10 +85,10 @@ class ListLiteralNode(LiteralNode):
             all((e.is_valid() for e in self.elements))
         ))
 
-    def translate(self, file: TextIO) -> None:
-        self.write_instruction(file, ['ARRAY', ' ', len(self.elements)])
+    def translate(self, file: TextIO, **kwargs) -> None:
+        self.write_instruction(file, ['ARRAY', ' ', str(len(self.elements))])
         for value in self.elements:
-            value.translate(file)
+            value.translate(file, **kwargs)
             file.write(' ')
         file.write('\n')
 
@@ -112,11 +112,11 @@ class KeymapElementNode(LiteralNode):
             self.right.is_valid()
         ))
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         # TODO: normal hash set
-        self.left.translate(file)
+        self.left.translate(file, **kwargs)
         file.write(' : ')
-        self.right.translate(file)
+        self.right.translate(file, **kwargs)
 
 
 class KeymapLiteralNode(LiteralNode):
@@ -130,10 +130,10 @@ class KeymapLiteralNode(LiteralNode):
             all((e.is_valid() for e in self.elements))
         ))
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         self.write_instruction(file, ['KEYMAP', ' ', len(self.elements)])
         for value in self.elements:
-            value.translate(file)
+            value.translate(file, **kwargs)
             file.write('\n')
 
 
@@ -141,5 +141,5 @@ class EmptyLiteralNode(LiteralNode):
     def __init__(self, line: int, position: int):
         super().__init__(line, position)
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         raise NotImplementedError

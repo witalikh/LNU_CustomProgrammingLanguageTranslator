@@ -32,7 +32,7 @@ class IfElseNode(ASTNode):
             self.else_scope.is_valid() if self.else_scope else True
         ))
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         if_label = 'IF' + str(self._curr_instance)
         else_label = 'ELSE' + str(self._curr_instance)
         endif_label = 'ENDIF' + str(self._curr_instance)
@@ -46,13 +46,14 @@ class IfElseNode(ASTNode):
         else:
             file.write(endif_label)
         file.write(' ')
-        self.condition.translate(file)
+        self.condition.translate(file, **kwargs)
         file.write('\n')
 
         self.write_instruction(file, ['LABEL', ' ', if_label])
-        self.if_scope.translate(file)
+        self.if_scope.translate(file, **kwargs)
         if self.else_scope:
             self.write_instruction(file, ['JUMP', ' ', endif_label])
             self.write_instruction(file, ['LABEL', ' ', else_label])
-            self.else_scope.translate(file)
+            self.else_scope.translate(file, **kwargs)
         self.write_instruction(file, ['LABEL', ' ', endif_label])
+

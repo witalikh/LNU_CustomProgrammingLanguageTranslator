@@ -180,6 +180,8 @@ def _validate_expression(
         )
 
     elif isinstance(expression, VariableDeclarationNode):
+        expression.type: TypeNode
+
         if expression.name in environment:
             error_logger.add(
                 expression.location,

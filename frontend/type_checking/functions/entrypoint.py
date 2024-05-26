@@ -1,11 +1,10 @@
 from ...abstract_syntax_tree import FunctionDefNode, ClassDefNode
-from ..shared import function_definitions, error_logger
+from ..shared import function_definitions
 
 from .._overloads import validate_overloaded_function_definitions
 from .._scope import validate_scope
 
 from .._helpers_function import instantiate_environment_from_function_parameters
-from .._type_get import check_arithmetic_expression, match_types
 from .._type_validate import validate_type
 
 

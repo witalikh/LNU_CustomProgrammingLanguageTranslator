@@ -45,14 +45,14 @@ class FunctionDefNode(ASTNode, Usable):
             self.external_to.is_valid() if self.external_to else True
         ))
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         self.write_instruction(file, ['FUNCTION', ' ', self.function_name])
         self.write_instruction(file, ['PARAMS_COUNT', ' ', str(len(self.parameters))])
         for arg in self.parameters:
-            arg.translate(file)
+            arg.translate(file, **kwargs)
             file.write('\n')
         file.write('\n')
-        self.function_body.translate(file)
+        self.function_body.translate(file, **kwargs)
         self.write_instruction(file, ['ENDFUNCTION', ' ', self.function_name])
 
 
@@ -74,10 +74,10 @@ class FunctionParameter(ASTNode, Usable):
             self.type.is_valid(),
         ))
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         file.write('PARAM')
         file.write(' ')
-        self.type.translate(file)
+        self.type.translate(file, **kwargs)
         file.write(' ')
         file.write(self.name)
 
@@ -98,7 +98,8 @@ class FunctionCallNode(CalculationNode):
         self.is_constructor = is_constructor
 
         # Type checking
-        self.function = None
+        self.is_overload = False
+        self.overload_number = 0
 
     def is_valid(self) -> bool:
         return all((
@@ -106,7 +107,7 @@ class FunctionCallNode(CalculationNode):
             all((a.is_valid() for a in self.arguments))
         ))
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         if self.is_constructor:
             file.write('CONSTRUCT')
         else:
@@ -115,9 +116,13 @@ class FunctionCallNode(CalculationNode):
         file.write(' ')
         file.write(str(len(self.arguments) + 1))
         file.write(' ')
-        self.identifier.translate(file)
+
+        if self.is_overload and self.overload_number != 0:
+            self.identifier.translate(file, suffix=f"$_{self.overload_number}")
+        else:
+            self.identifier.translate(file, **kwargs)
         file.write(' ')
 
         for argument in self.arguments:
-            argument.translate(file)
+            argument.translate(file, **kwargs)
             file.write(' ')

@@ -9,7 +9,5 @@ def instantiate_all_generics(root: ProgramNode):
             for inst in class_defn._instantiations:
                 pass
 
-
-
 def instantiate_generics():
     pass

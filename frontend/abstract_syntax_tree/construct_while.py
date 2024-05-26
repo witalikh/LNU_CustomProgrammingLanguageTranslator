@@ -29,7 +29,7 @@ class WhileNode(ASTNode):
             self.while_scope.is_valid(),
         ))
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         while_label = 'WHILE' + str(self._curr_instance)
         endwhile_label = 'ENDWHILE' + str(self._curr_instance)
 
@@ -39,11 +39,11 @@ class WhileNode(ASTNode):
         file.write(' ')
         file.write(endwhile_label)
         file.write(' ')
-        self.condition.translate(file)
+        self.condition.translate(file, **kwargs)
         file.write('\n')
 
         self.write_instruction(file, ['LABEL', ' ', while_label])
-        self.while_scope.translate(file)
+        self.while_scope.translate(file, **kwargs)
 
         file.write('COND')
         file.write(' ')
@@ -51,7 +51,7 @@ class WhileNode(ASTNode):
         file.write(' ')
         file.write(endwhile_label)
         file.write(' ')
-        self.condition.translate(file)
+        self.condition.translate(file, **kwargs)
         file.write('\n')
 
         self.write_instruction(file, ['LABEL', ' ', endwhile_label])

@@ -16,7 +16,7 @@ class ASTNode(ABC):
         return self.line, self.position
 
     @abstractmethod
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         pass
 
     @abstractmethod
