@@ -37,7 +37,7 @@ class TypeLiteral(ASTNode):
     def is_valid(self) -> bool:
         return self.valid
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         file.write(self.name)
 
 
@@ -195,7 +195,7 @@ class TypeNode(ASTNode):
             all((a.is_valid() for a in self.arguments)) if self.arguments else True
         ))
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         if self.is_literal:
             raise NotImplementedError
 
@@ -210,7 +210,7 @@ class TypeNode(ASTNode):
             file.write(' ')
 
         if isinstance(self.type, TypeLiteral):
-            self.type.translate(file)
+            self.type.translate(file, **kwargs)
         else:
             file.write('CLASSID')
             file.write(' ')

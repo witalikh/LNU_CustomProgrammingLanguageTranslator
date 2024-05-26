@@ -1,7 +1,5 @@
-from ._syntax.keywords import Keyword
-from ._syntax.keywords import ClassModifierKeyword
-from ._syntax.operators import Operator
-from ._syntax.operators import Assignment
+from ._syntax.keywords import Keyword, ClassModifierKeyword
+from ._syntax.operators import Operator, Assignment, Comparison
 from ._syntax.types_compound import CompoundType
 from ._syntax.types_modifier import TypeModifier
 from ._syntax.types_simple import SimpleType
@@ -20,6 +18,7 @@ class Operands(CustomEnum):
     TERMINATION = "!"
 
 
+COMPARISON_REGEX = join_unbounded_keywords_as_regex(Comparison.values())
 ASSIGNMENTS_REGEX = join_unbounded_keywords_as_regex(Assignment.values())
 OPERATORS_REGEX = join_partially_bounded_keywords_as_regex(Operator.values())
 OPERANDS_REGEX = join_partially_bounded_keywords_as_regex(Operands.values())
@@ -95,6 +94,7 @@ RULES = (
         (TokenType.UNDEFINED_LITERAL, UNDEFINED_REGEX),
         (TokenType.BOOLEAN_LITERAL, BOOLEAN_REGEX),
 
+        (TokenType.COMPARISON, COMPARISON_REGEX),
         (TokenType.GENERIC_ASSIGNMENT, ASSIGNMENTS_REGEX),
         (TokenType.OPERATOR, OPERATORS_REGEX),
         (TokenType.OPERAND, OPERANDS_REGEX),

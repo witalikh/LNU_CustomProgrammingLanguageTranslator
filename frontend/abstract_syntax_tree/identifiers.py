@@ -14,7 +14,9 @@ class IdentifierNode(ASTNode):
     def __print_tree__(self) -> str:
         return f"Identifier({self.name})"
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         file.write('ID')
         file.write(' ')
         file.write(self.name)
+        if suffix := kwargs.pop('suffix', ''):
+            file.write(suffix)

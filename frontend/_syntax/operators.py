@@ -1,6 +1,19 @@
 from ..etc import CustomEnum
 
 
+class Comparison(CustomEnum):
+    LESSER_OR_EQUAL = "<="
+    GREATER_OR_EQUAL = ">="
+    NOT_EQUAL = "!="
+    GREATER = ">"
+    LESSER = "<"
+    EQUAL = "=="
+    STRICT_EQUAL = "==="
+    NOT_STRICT_EQUAL = "!=="
+
+    MEMBERSHIP_OPERATOR = "in"
+
+
 class Operator(CustomEnum):
     # member access
     OBJECT_MEMBER_ACCESS = "."
@@ -35,18 +48,6 @@ class Operator(CustomEnum):
     BITWISE_LSHIFT = "<<"
     BITWISE_INVERSE = "~"
 
-    # comparison
-    LESSER_OR_EQUAL = "<="
-    GREATER_OR_EQUAL = ">="
-    NOT_EQUAL = "!="
-    GREATER = ">"
-    LESSER = "<"
-    EQUAL = "=="
-    STRICT_EQUAL = "==="
-    NOT_STRICT_EQUAL = "!=="
-
-    MEMBERSHIP_OPERATOR = "in"
-
     # syntax sugar
     FUNCTIONAL = "@"
 
@@ -66,6 +67,8 @@ class Operator(CustomEnum):
     NEW_INSTANCE = "new"
     DELETE_INSTANCE = "delete"
 
+
+class OperatorMethods:
     @staticmethod
     def translate(op: str, n: int):
         binary_operator_names = {
@@ -77,15 +80,15 @@ class Operator(CustomEnum):
             Operator.FLOOR_DIVIDE: "fdiv",
             Operator.POWER: "pow",
 
-            Operator.LESSER_OR_EQUAL: "lte",
-            Operator.GREATER_OR_EQUAL: "gte",
-            Operator.NOT_EQUAL: "ne",
-            Operator.GREATER: "gt",
-            Operator.LESSER: "lt",
-            Operator.EQUAL: "eq",
+            Comparison.LESSER_OR_EQUAL: "lte",
+            Comparison.GREATER_OR_EQUAL: "gte",
+            Comparison.NOT_EQUAL: "ne",
+            Comparison.GREATER: "gt",
+            Comparison.LESSER: "lt",
+            Comparison.EQUAL: "eq",
 
-            Operator.STRICT_EQUAL: 'eq!',
-            Operator.NOT_STRICT_EQUAL: 'ne!',
+            Comparison.STRICT_EQUAL: 'eq!',
+            Comparison.NOT_STRICT_EQUAL: 'ne!',
 
             Operator.BITWISE_XOR: "bxor",
             Operator.BITWISE_AND: "band",
@@ -93,7 +96,7 @@ class Operator(CustomEnum):
             Operator.BITWISE_RSHIFT: "brshift",
             Operator.BITWISE_LSHIFT: "blshift",
 
-            Operator.MEMBERSHIP_OPERATOR: "in",
+            Comparison.MEMBERSHIP_OPERATOR: "in",
 
             Operator.AND: "and",
             Operator.OR: "or",
@@ -106,6 +109,9 @@ class Operator(CustomEnum):
 
             Operator.TYPE_CAST: "cast",
             Operator.NULL_COALESCE: "coalesce",
+
+            Operator.OBJECT_MEMBER_ACCESS: "ACCESS",
+            Operator.REFERENCE_MEMBER_ACCESS: "REFACCESS",
         }
 
         unary_operator_names = {
@@ -120,9 +126,6 @@ class Operator(CustomEnum):
 
             Operator.REFERENCE: "addr",
             Operator.DEREFERENCE: "valof",
-
-            Operator.OBJECT_MEMBER_ACCESS: "ACCESS",
-            Operator.REFERENCE_MEMBER_ACCESS: "REFACCESS",
         }
 
         if n == 2:
@@ -141,12 +144,12 @@ class Operator(CustomEnum):
             Operator.FLOOR_DIVIDE,
             Operator.POWER,
 
-            Operator.LESSER_OR_EQUAL,
-            Operator.GREATER_OR_EQUAL,
-            Operator.NOT_EQUAL,
-            Operator.GREATER,
-            Operator.LESSER,
-            Operator.EQUAL,
+            Comparison.LESSER_OR_EQUAL,
+            Comparison.GREATER_OR_EQUAL,
+            Comparison.NOT_EQUAL,
+            Comparison.GREATER,
+            Comparison.LESSER,
+            Comparison.EQUAL,
 
             Operator.BITWISE_XOR,
             Operator.BITWISE_AND,
@@ -155,7 +158,7 @@ class Operator(CustomEnum):
             Operator.BITWISE_LSHIFT,
             Operator.BITWISE_INVERSE,
 
-            Operator.MEMBERSHIP_OPERATOR,
+            Comparison.MEMBERSHIP_OPERATOR,
         ]
         return op in possible_overload_operators
 

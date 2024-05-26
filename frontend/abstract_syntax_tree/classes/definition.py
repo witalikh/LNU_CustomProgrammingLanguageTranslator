@@ -102,22 +102,22 @@ class ClassDefNode(ASTNode, Usable):
             raise ValueError("Args count mismatch")
         self._instantiations.append(instantiation)
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         if not self.translatable:
             raise ValueError("Translation error: generics not mangled ")
         if self.static_methods_defs:
             raise ValueError("Translation error: static methods not mangled")
-        if self.fields_definitions:
+        if self.static_fields_defs:
             raise ValueError("Translation error: fields definitions not mangled")
 
         self.write_instruction(file, ['CLASS', ' ', self.name])
         for field in self.fields_definitions:
-            field.translate(file)
+            field.translate(file, **kwargs)
             file.write('\n')
         file.write('\n')
 
         for method in self.methods_defs:
-            method.translate(file)
+            method.translate(file, **kwargs)
             file.write('\n')
 
         self.write_instruction(file, ['ENDCLASS', ' ', self.name])

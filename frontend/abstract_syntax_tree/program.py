@@ -16,11 +16,11 @@ class ProgramNode(ASTNode):
         self.function_definitions = function_definitions
         self.statements = statements
 
-    def translate(self, file: TextIO):
+    def translate(self, file: TextIO, **kwargs):
         if self.class_definitions:
             self.write_instruction(file, ['REGION', ' ', 'CLASS_DEFNS', '\n'])
             for cls in self.class_definitions:
-                cls.translate(file)
+                cls.translate(file, **kwargs)
                 file.write('\n\n')
             self.write_instruction(file, ['ENDREGION', ' ', 'CLASS_DEFNS'])
             file.write('\n\n')
@@ -28,13 +28,13 @@ class ProgramNode(ASTNode):
         if self.function_definitions:
             self.write_instruction(file, ['REGION', ' ', 'FUNC_DEFNS', '\n'])
             for fnc in self.function_definitions:
-                fnc.translate(file)
+                fnc.translate(file, **kwargs)
                 file.write('\n')
             self.write_instruction(file, ['ENDREGION', ' ', 'FUNC_DEFNS'])
             file.write('\n\n')
 
         for statement in self.statements:
-            statement.translate(file)
+            statement.translate(file, **kwargs)
             file.write('\n')
 
     def is_valid(self) -> bool:

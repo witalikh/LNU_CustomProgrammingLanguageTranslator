@@ -1,6 +1,6 @@
 from typing import Tuple, Union, TypedDict, Unpack
 
-from .._syntax.operators import Operator
+from .._syntax.operators import OperatorMethods, Operator
 
 from ..abstract_syntax_tree import (
     ASTNode, TypeNode, TypeCategory,
@@ -16,7 +16,6 @@ from ..abstract_syntax_tree import (
     IdentifierNode,
     AssignmentNode,
     ThisNode,
-
     IntegerSizes, FloatSizes,
 )
 from ..semantics import TypeEnum
@@ -70,7 +69,16 @@ def check_arithmetic_expression(
         return valid_expr, expr_type
 
     elif isinstance(expression, IndexNode):
-        valid_expr, expr_type = _get_type_of_indexation_call(expression=expression, environment=environment, **context)
+        res = _get_type_of_indexation_call(expression=expression, environment=environment, **context)
+        if len(res) == 2:
+            valid_expr, expr_type = res
+        elif len(res) == 3:
+            valid_expr, expr_type, _num = res
+            expression.is_overload = True
+            expression.overload_number = _num
+        else:
+            # unreachable
+            return False, None
         expression.valid = valid_expr
         return valid_expr, expr_type
 
@@ -163,9 +171,9 @@ def _check_this_literal(
 
     if context_class and is_nonstatic_method:
         return True, TypeNode(
-            category=TypeCategory.CLASS if not context_class.generic_params else TypeCategory.GENERIC_CLASS,
-            type_node=IdentifierNode(name=context_class.name, *context_class.location),
-            args=context_class.generic_params,
+            TypeCategory.CLASS if not context_class.generic_params else TypeCategory.GENERIC_CLASS,
+            IdentifierNode(context_class.name, *context_class.location),
+            context_class.generic_params,
             *context_class.location
         )
     error_logger.add(
@@ -188,6 +196,7 @@ def _check_member(
     """
     # right operand of membership operator should be parsed as identifier no matter what
     if not isinstance(expression.right, IdentifierNode):
+        print(expression)
         raise AssertionError(f"Unexpected expression: {type(expression.right)}")
 
     member_name = expression.right.name
@@ -255,11 +264,32 @@ def _check_binary_operator(
         return False, None
 
     if expression.is_arithmetic:
-        return __get_type_of_arithmetic_binary_operator(lhs_type=lhs_type, rhs_type=rhs_type, operator=operator, location=expression.location)
+        res = __get_type_of_arithmetic_binary_operator(lhs_type=lhs_type, rhs_type=rhs_type, operator=operator, location=expression.location)
+        if len(res) == 2:
+            return res
+        elif len(res) == 3:
+            _valid, _type, _num = res
+            expression.is_overload = True
+            expression.overload_number = _num
+            return _valid, _type
+        else:
+            # unreachable
+            return False, None
+
     elif expression.is_logical:
         return __get_type_of_logical_binary_operator(lhs_type=lhs_type, rhs_type=rhs_type, operator=operator, location=expression.location)
     elif expression.is_comparison:
-        return __get_type_of_comparison_binary_operator(lhs_type=lhs_type, rhs_type=rhs_type, operator=operator, location=expression.location)
+        res = __get_type_of_comparison_binary_operator(lhs_type=lhs_type, rhs_type=rhs_type, operator=operator, location=expression.location)
+        if len(res) == 2:
+            return res
+        elif len(res) == 3:
+            _valid, _type, _num = res
+            expression.is_overload = True
+            expression.overload_number = _num
+            return _valid, _type
+        else:
+            # unreachable
+            return False, None
     elif expression.is_casting:
         if not isinstance(expression.right, TypeNode):
             error_logger.add(
@@ -282,16 +312,16 @@ def ___get_type_of_overloaded_operator(
     signature: list[TypeNode],
     operator: str,
     location: tuple[int, int]
-) -> Tuple[bool, Union[TypeNode, None]]:
-    if not Operator.overloadable(operator) and operator not in ["call", "index"]:
+) -> Tuple[bool, Union[TypeNode, None]] | Tuple[bool, Union[TypeNode, None], int]:
+    if not OperatorMethods.overloadable(operator) and operator not in ["call", "index"]:
         error_logger.add(
             location=location,
             reason=f"Operator {operator} is not overridable and cannot be applied to this types"
         )
         return False, None
 
-    if Operator.overloadable(operator):
-        function_name = f"$operator_{Operator.translate(operator, 2)}"
+    if OperatorMethods.overloadable(operator):
+        function_name = f"$operator_{OperatorMethods.translate(operator, 2)}"
     else:
         function_name = f"$operator_{operator}"
     is_valid, function_node = get_function(func_name=function_name, args_signature=signature)
@@ -325,7 +355,7 @@ def ___get_type_of_overloaded_operator(
         )
         return False, None
 
-    return True, return_type
+    return True, return_type, function_node.overload_number
 
 
 def __get_type_of_arithmetic_binary_operator(
@@ -439,7 +469,17 @@ def _check_unary_operator(
     valid_expr, expression_type = check_arithmetic_expression(expression=unary_op_expr.expression, environment=environment, **context)
     operator = unary_op_expr.operator
     if unary_op_expr.is_arithmetic:
-        return __get_type_of_arithmetic_unary_operator(expression_type=expression_type, operator=operator, location=unary_op_expr.location)
+        res = __get_type_of_arithmetic_unary_operator(expression_type=expression_type, operator=operator, location=unary_op_expr.location)
+        if len(res) == 2:
+            return res
+        elif len(res) == 3:
+            _valid, _type, _num = res
+            unary_op_expr.is_overload = True
+            unary_op_expr.overload_number = _num
+            return _valid, _type
+        else:
+            # unreachable
+            return False, None
 
     elif unary_op_expr.is_allocation:
         return __get_type_of_allocation_unary_operator(expression_type=expression_type, operator=operator, location=unary_op_expr.location)
@@ -506,7 +546,7 @@ def __get_type_of_allocation_unary_operator(
     if expression_type is None:
         error_logger.add(
             location=location,
-            reason="Unsupported expression"
+            reason="Unsupported expression for allocation before even checking"
         )
         return False, None
 
@@ -518,7 +558,7 @@ def __get_type_of_allocation_unary_operator(
     else:
         error_logger.add(
             location=location,
-            reason="Unsupported expression"
+            reason="Unsupported expression for allocation"
         )
         return False, None
 
@@ -585,6 +625,9 @@ def _get_type_of_function_call(
 
     elif isinstance(function_id, IdentifierNode):
         return __get_function_call(expression=expression, environment=environment, **context)
+
+    elif isinstance(function_id, TypeNode):
+        return __get_constructor_call(expression=expression, environment=environment, **context)
 
     # Assume no static, functors etc
     else:
@@ -664,7 +707,7 @@ def __get_method_call(
         )
         return False, None
 
-    expression.function = class_method
+    expression.overload_number = class_method.overload_number
     class_method.use()
     return True, return_type
 
@@ -684,7 +727,6 @@ def __get_function_call(
         args_signature.append(arg_type)
 
     is_valid, function_node = get_function(func_name=function_id.name, args_signature=args_signature)
-
     if not is_valid or function_node is None:
         error_logger.add(
             location=expression.location,
@@ -692,9 +734,50 @@ def __get_function_call(
         )
         return False, None
 
-    expression.function = function_node
+    expression.overload_number = function_node.overload_number
     function_node.use()
     return True, function_node.return_type
+
+
+def __get_constructor_call(
+    expression: FunctionCallNode,
+    environment: dict[str, TypeNode],
+    **context: Unpack[_ContextParams]
+):
+    function_id: TypeNode = expression.identifier
+    args_signature = []
+    for arg in expression.arguments:
+        valid_arg, arg_type = check_arithmetic_expression(expression=arg, environment=environment, **context)
+        if not valid_arg:
+            # error is already logged
+            return False, None
+        args_signature.append(arg_type)
+
+    # TODO: generic constructor
+    class_node = get_class_by_name(function_id.name)
+    if not class_node:
+        error_logger.add(
+            location=expression.location,
+            reason=f"Class {function_id.name} doesn't exist!"
+        )
+        return False, None
+
+    constructor_node = get_class_method(function_id.name, "$constructor", args_signature, False)
+    if constructor_node is None:
+        error_logger.add(
+            location=expression.location,
+            reason=f"Invalid constructor for class {function_id.name}"
+        )
+        return False, None
+
+    expression.overload_number = constructor_node.overload_number
+    constructor_node.use()
+    return True, TypeNode(
+        TypeCategory.CLASS,
+        IdentifierNode(class_node.name, *expression.location),
+        None,
+        *expression.location
+    )
 
 
 def _get_type_of_indexation_call(

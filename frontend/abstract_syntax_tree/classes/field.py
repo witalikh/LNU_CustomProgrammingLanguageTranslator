@@ -30,9 +30,9 @@ class ClassFieldDeclarationNode(ASTNode, AccessTypeMixin, Usable):
             self.type.is_valid(),
         ))
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         file.write('SET')
         file.write(' ')
-        self.type.translate(file)
+        self.type.translate(file, **kwargs)
         file.write(' ')
         file.write(self.name)

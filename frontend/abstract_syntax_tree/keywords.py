@@ -15,7 +15,7 @@ class BreakNode(KeywordNode):
         self.loop_instance = loop
         self.thrown_error = error
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         if self.loop_instance is not None:
             endwhile_label = 'ENDWHILE' + str(self.loop_instance)
             self.write_instruction(file, ['JUMP', ' ', endwhile_label])
@@ -24,7 +24,7 @@ class BreakNode(KeywordNode):
 
 
 class ThisNode(KeywordNode):
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         file.write('THIS')
 
 
@@ -34,7 +34,7 @@ class ContinueNode(KeywordNode):
         self.loop_instance = loop
         self.catched_error = error
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         if self.loop_instance is not None:
             while_label = 'WHILE' + str(self.loop_instance)
             self.write_instruction(file, ['JUMP', ' ', while_label])
@@ -47,10 +47,10 @@ class ReturnNode(KeywordNode):
         super().__init__(line=line, position=position)
         self.value = value
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         file.write('RETURN')
         file.write(' ')
         if self.value is not None:
-            self.value.translate(file)
+            self.value.translate(file, **kwargs)
         else:
             file.write('NOTHING')

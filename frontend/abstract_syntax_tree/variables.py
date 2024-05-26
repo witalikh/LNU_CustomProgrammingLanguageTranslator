@@ -28,10 +28,10 @@ class VariableDeclarationNode(ASTNode):
             and self.value.is_valid() if self.value is not None else True
         )
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         file.write('SET')
         file.write(' ')
-        self.type.translate(file)
+        self.type.translate(file, **kwargs)
         file.write(' ')
         file.write(self.name)
         if self.value is not None:
@@ -42,4 +42,4 @@ class VariableDeclarationNode(ASTNode):
             file.write(' ')
             file.write(self.name)
             file.write(' ')
-            self.value.translate(file)
+            self.value.translate(file, **kwargs)

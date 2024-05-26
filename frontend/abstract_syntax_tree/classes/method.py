@@ -13,6 +13,8 @@ class ClassMethodDeclarationNode(ASTNode, AccessTypeMixin, Usable):
         function_name: str,
         parameters: list["FunctionParameter"],
         function_body: ScopeNode,
+        is_constructor: bool,
+        is_destructor: bool,
         access_type: str,
         static: bool,
         virtual: bool,
@@ -31,7 +33,12 @@ class ClassMethodDeclarationNode(ASTNode, AccessTypeMixin, Usable):
         self.is_virtual = virtual
         self.is_overload = overload
 
+        self.is_constructor = is_constructor
+        self.is_destructor = is_destructor
+
         # Type checker
+        self.overload_number = 0
+        self.has_overloads = False
         self._usages = 0
 
         # META INFO:
@@ -51,11 +58,11 @@ class ClassMethodDeclarationNode(ASTNode, AccessTypeMixin, Usable):
             self.function_body.is_valid(),
         ))
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         # TODO: normal constructors
         self.write_instruction(file, ['METHOD', ' ', self.function_name])
         for arg in self.parameters:
-            arg.translate(file)
+            arg.translate(file, **kwargs)
             file.write('\n')
-        self.function_body.translate(file)
+        self.function_body.translate(file, **kwargs)
         self.write_instruction(file, ['ENDMETHOD', ' ', self.function_name])

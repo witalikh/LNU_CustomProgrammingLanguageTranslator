@@ -76,7 +76,7 @@ class IntegerLiteralNode(LiteralNode):
     def fits(self, size: IntegerSizes) -> bool:
         return self._size <= size
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         file.write(str(self.value))
 
 
@@ -143,7 +143,7 @@ class FloatLiteralNode(LiteralNode):
     def is_zero(self) -> bool:
         return self._value == 0
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         file.write(str(self.value))
 
 
@@ -152,7 +152,7 @@ class ImaginaryFloatLiteralNode(FloatLiteralNode):
         super().__init__(value, line, position)
         self._value = value
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         file.write('IMAGINARY')
         file.write(' ')
         file.write(str(self.value))

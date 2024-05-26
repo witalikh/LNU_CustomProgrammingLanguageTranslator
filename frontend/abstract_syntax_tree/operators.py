@@ -1,4 +1,4 @@
-from .._syntax.operators import Operator, Assignment
+from .._syntax.operators import OperatorMethods, Assignment
 
 from .ast_node import ASTNode
 from .literals import CalculationNode
@@ -76,12 +76,28 @@ class BinaryOperatorABCNode(OperatorABC):
         self.operator = operator
         self.right = right
 
-    def translate(self, file: TextIO) -> None:
-        file.write(Operator.translate(self.operator, 2))
+        self.is_overload = False
+        self.overload_number = 0
+
+    def translate(self, file: TextIO, **kwargs) -> None:
+        if self.is_overload:
+            file.write('CALL')
+
+            file.write(' ')
+            file.write(str(3))
+            file.write(' ')
+            file.write('ID')
+            file.write(' ')
+            if self.overload_number != 0:
+                file.write(f"$operator_{OperatorMethods.translate(self.operator, 2)}$_{self.overload_number}")
+            else:
+                file.write(f"$operator_{OperatorMethods.translate(self.operator, 2)}")
+        else:
+            file.write(OperatorMethods.translate(self.operator, 2))
         file.write(' ')
-        self.left.translate(file)
+        self.left.translate(file, **kwargs)
         file.write(' ')
-        self.right.translate(file)
+        self.right.translate(file, **kwargs)
 
     def is_valid(self) -> bool:
         return all((
@@ -105,16 +121,32 @@ class UnaryOperatorABCNode(OperatorABC):
         self.operator = operator
         self.expression = expression
 
+        self.is_overload = False
+        self.overload_number = 0
+
     def is_valid(self) -> bool:
         return all((
             self.valid,
             self.expression.is_valid(),
         ))
 
-    def translate(self, file: TextIO) -> None:
-        file.write(Operator.translate(self.operator, 1))
+    def translate(self, file: TextIO, **kwargs) -> None:
+        if self.is_overload:
+            file.write('CALL')
+
+            file.write(' ')
+            file.write(str(2))
+            file.write(' ')
+            file.write('ID')
+            file.write(' ')
+            if self.overload_number != 0:
+                file.write(f"$operator_{OperatorMethods.translate(self.operator, 1)}$_{self.overload_number}")
+            else:
+                file.write(f"$operator_{OperatorMethods.translate(self.operator, 1)}")
+        else:
+            file.write(OperatorMethods.translate(self.operator, 1))
         file.write(' ')
-        self.expression.translate(file)
+        self.expression.translate(file, **kwargs)
 
 
 class AssignmentNode(CalculationNode):
@@ -142,18 +174,18 @@ class AssignmentNode(CalculationNode):
             self.right.is_valid()
         ))
 
-    def translate(self, file: TextIO) -> None:
+    def translate(self, file: TextIO, **kwargs) -> None:
         if isinstance(self.right, AssignmentNode):
-            self.right.translate(file)
+            self.right.translate(file, **kwargs)
             file.write('\n')
         file.write(Assignment.translate(self.operator))
         file.write(' ')
-        self.left.translate(file)
+        self.left.translate(file, **kwargs)
         file.write(' ')
         if isinstance(self.right, AssignmentNode):
-            self.right.left.translate(file)
+            self.right.left.translate(file, **kwargs)
         else:
-            self.right.translate(file)
+            self.right.translate(file, **kwargs)
 
 
 class MemberOperatorNode(CalculationNode):
@@ -182,12 +214,12 @@ class MemberOperatorNode(CalculationNode):
             self.right.is_valid()
         ))
 
-    def translate(self, file: TextIO) -> None:
-        file.write(Operator.translate(self.operator, 2))
+    def translate(self, file: TextIO, **kwargs) -> None:
+        file.write(OperatorMethods.translate(self.operator, 2))
         file.write(' ')
-        self.left.translate(file)
+        self.left.translate(file, **kwargs)
         file.write(' ')
-        self.right.translate(file)
+        self.right.translate(file, **kwargs)
 
 
 class IndexNode(CalculationNode):
@@ -202,6 +234,9 @@ class IndexNode(CalculationNode):
         self.variable = variable
         self.arguments = arguments
 
+        self.is_overload = False
+        self.overload_number = 0
+
     def is_valid(self) -> bool:
         return all((
             self.valid,
@@ -209,12 +244,25 @@ class IndexNode(CalculationNode):
             all((a.is_valid() for a in self.arguments))
         ))
 
-    def translate(self, file: TextIO) -> None:
-        file.write('INDEX')
+    def translate(self, file: TextIO, **kwargs) -> None:
+        if self.is_overload:
+            file.write('CALL')
+
+            file.write(' ')
+            file.write(str(len(self.arguments) + 2))
+            file.write(' ')
+            file.write('ID')
+            file.write(' ')
+            if self.overload_number != 0:
+                file.write(f"$operator_index$_{self.overload_number}")
+            else:
+                file.write(f"$operator_index")
+        else:
+            file.write('INDEX')
+            file.write(' ')
+            file.write(str(len(self.arguments) + 1))
         file.write(' ')
-        file.write(str(len(self.arguments) + 1))
-        file.write(' ')
-        self.variable.translate(file)
+        self.variable.translate(file, **kwargs)
         for arg in self.arguments:
             file.write(' ')
-            arg.translate(file)
+            arg.translate(file, **kwargs)
