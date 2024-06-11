@@ -46,97 +46,93 @@ public partial class Interpreter
     private object? ParseOperand(List<Token> tokenList, ref int idx, bool shift = true)
     {
         var token = tokenList[idx];
-        object? value;
+        object? value = null;
         
-        if (token.Type == TokenType.Number)
+        switch (token.Type)
         {
-            
-            value = ParseNumber(token.Value);
-            idx++;
-            return value;
-        }
-
-        if (token.Type == TokenType.String)
-        {
-            value = token.Value;
-            idx++;
-            return value;
-        }
-
-        if (token.Type == TokenType.Identifier)
-        {
-            throw new Exception("Invalid place to meet identifier, yet");
-            
-        }
-
-        if (token.Type == TokenType.Symbol)
-        {
-            
-        }
-
-        switch (token.Value)
-        {
-            case "ADD":
-            case "SUB":
-            case "MUL":
-            case "DIV":
-            case "MOD":
-            case "FDIV":
-            case "POW":
-            case "BXOR":
-            case "BAND":
-            case "BOR":
-            case "BRSHIFT":
-            case "BLSHIFT":
-                value = this.EvaluateBinaryArithmetic(tokenList, ref idx);
+            case TokenType.Number:
+                value = ParseNumber(token.Value);
                 break;
-            case "LTE":
-            case "GTE":
-            case "LT":
-            case "GT":
-            case "EQ":
-            case "NE":
-            case "EQ!":
-            case "NE!":
-            case "IN":
-                value = this.EvaluateBinaryComparison(tokenList, ref idx);
+            case TokenType.String:
+                value = token.Value;
                 break;
-            case "AND":
-            case "OR":
-            case "XOR":
-            case "AND!":
-            case "OR!":
-                value = this.EvaluateBoolean(tokenList, ref idx);
-                break;
-            case "CAST":
-            case "COALESCE":
-                value = this.EvaluateTypeConversion(tokenList, ref idx);
-                break;
-            case "IDEMPOTATE":
-            case "NEGATE":
-            case "NOT":
-            case "BINV":
-                return this.EvaluateUnaryArithmetic(tokenList, ref idx);
-            case "ALLOC":
-            case "FREE":
-                value = this.EvaluateMemoryManagement(tokenList, ref idx);
-                break;
-            case "ADDR":
-            case "VALOF":
-                value = this.ExecuteReference(tokenList, ref idx);
-                break;
-            case "ID":
-                value = this.EvaluateIdentifier(tokenList, ref idx);
-                break;
-            case "CALL":
-                value = this.ExecuteCall(tokenList, ref idx);
-                break;
-            case "INDEX":
-                value = this.ExecuteIndex(tokenList, ref idx);
+            case TokenType.Identifier:
+                throw new Exception("Invalid place to meet identifier, yet");
+            case TokenType.Symbol:
                 break;
             default:
-                throw new Exception($"Unknown or unsupported token: {token.Value}");
+                switch (token.Value)
+                {
+                    case Syntax.Add:
+                    case Syntax.Subtract:
+                    case Syntax.Multiply:
+                    case Syntax.Divide:
+                    case Syntax.Modulo:
+                    case Syntax.FloorDivision:
+                    case Syntax.Power:
+                    case Syntax.BitwiseXor:
+                    case Syntax.BitwiseAnd:
+                    case Syntax.BitwiseOr:
+                    case Syntax.BitwiseLeftShift:
+                    case Syntax.BitwiseRightShift:
+                        value = this.EvaluateBinaryArithmetic(tokenList, ref idx);
+                        break;
+                    case Syntax.LessThanOrEqual:
+                    case Syntax.GreaterThanOrEqual:
+                    case Syntax.LessThan:
+                    case Syntax.GreaterThan:
+                    case Syntax.Equal:
+                    case Syntax.NotEqual:
+                    case Syntax.StrictEqual:
+                    case Syntax.StrictNotEqual:
+                    case Syntax.MemberAccess:
+                        value = this.EvaluateBinaryComparison(tokenList, ref idx);
+                        break;
+                    case Syntax.BooleanAnd:
+                    case Syntax.BooleanOr:
+                    case Syntax.BooleanXor:
+                    case Syntax.BooleanFullAnd:
+                    case Syntax.BooleanFullOr:
+                        value = this.EvaluateBoolean(tokenList, ref idx);
+                        break;
+                    case Syntax.TypeCast:
+                    case Syntax.NullCoalesce:
+                        value = this.EvaluateTypeConversion(tokenList, ref idx);
+                        break;
+                    case Syntax.UnaryIdempotate:
+                    case Syntax.UnaryNegate:
+                    case Syntax.BooleanNot:
+                    case Syntax.BitwiseInverse:
+                        return this.EvaluateUnaryArithmetic(tokenList, ref idx);
+                    case Syntax.Free:
+                        value = this.EvaluateMemoryManagement(tokenList, ref idx);
+                        break;
+                    case Syntax.GetReferenceOf:
+                    case Syntax.GetValueOf:
+                        value = this.ExecuteReference(tokenList, ref idx);
+                        break;
+                    case Syntax.Identifier:
+                        value = this.EvaluateIdentifier(tokenList, ref idx);
+                        break;
+                    case Syntax.Call:
+                        value = this.ExecuteCall(tokenList, ref idx);
+                        break;
+                    case Syntax.Indexation:
+                        value = this.ExecuteIndex(tokenList, ref idx);
+                        break;
+                    case Syntax.Allocate:
+                        ExecuteAllocate(tokenList, ref idx);
+                        break;
+                    case Syntax.ConstructorCall:
+                        this.ExecuteConstruct(tokenList, ref idx);
+                        break;
+                    default:
+                        throw new Exception($"Unknown or unsupported token: {token.Value}");
+                }
+
+                break;
         }
+
         if (shift) idx++;
         return value;
     }
@@ -184,8 +180,8 @@ public partial class Interpreter
         // TODO: type conversion
         return operation switch
         {
-            "CAST" => Convert.ChangeType(value, Type.GetType(tokenList[idx++].Value)),
-            "COALESCE" => value ?? this.ResolveValue(tokenList[idx++].Value),
+            Syntax.TypeCast => Convert.ChangeType(value, Type.GetType(tokenList[idx++].Value)),
+            Syntax.NullCoalesce => value ?? this.ResolveValue(tokenList[idx++].Value),
             _ => throw new Exception($"Unknown type conversion operation: {operation}")
         };
     }
@@ -201,20 +197,18 @@ public partial class Interpreter
     private object? EvaluateMemoryManagement(List<Token> tokenList, ref int idx)
     {
         string operation = tokenList[idx++].Value;
-        if (operation == "ALLOC")
+        if (operation == Syntax.Allocate)
         {
             return this.ExecuteConstruct(tokenList, ref idx);
         }
-        if (operation == "FREE")
+        if (operation == Syntax.Free)
         {
             var target = this.EvaluateIdentifier(tokenList, ref idx);
             // TODO: FREE
             //this._variables.Remove(target);
+            return null;
         }
-        else
-        {
-            throw new Exception($"Unknown memory management operation: {operation}");
-        }
+        throw new Exception($"Unknown memory management operation: {operation}");
     }
 
     private object? ExecuteReference(List<Token> tokenList, ref int idx)
@@ -224,12 +218,12 @@ public partial class Interpreter
 
         object result = operation switch
         {
-            "ADDR" => value,
-            "VALOF" => this._variables[(string)value],
+            Syntax.GetReferenceOf => value,
+            Syntax.GetValueOf => this._variables[(string)value],
             _ => throw new Exception($"Unknown reference operation: {operation}")
         };
 
-        this._variables[target] = result;
+        return result;
     }
     
     private object? ExecuteIndex(List<Token> tokenList, ref int idx)
@@ -242,6 +236,7 @@ public partial class Interpreter
         object? arrayName = this.EvaluateIdentifier(tokenList, ref idx);
         
         int index = (int)this.ResolveValue(tokenList[idx++].Value);
-        
+
+        return null;
     }
 }

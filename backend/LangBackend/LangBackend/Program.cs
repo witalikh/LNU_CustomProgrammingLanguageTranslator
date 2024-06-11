@@ -19,77 +19,6 @@ public class Lexer
     private string _code;
     private int _index;
 
-    private static readonly HashSet<string> Keywords = new HashSet<string>
-    {
-        // region
-        // end
-        "REGION", "ENDREGION",
-        "CLASS_DEFNS", "FUNC_DEFNS",
-        
-        // constructs
-        "CLASS", "METHOD", "FUNCTION",
-        "ENDCLASS", "ENDMETHOD", "ENDFUNCION",
-            
-        // helpers
-        "PARAM", "RETURN", "NOTHING", "THIS",
-            
-            
-        "SET", "UNSET",
-        "VALCOPY", "REFCOPY",
-            
-        "LABEL", "JUMP",
-            
-        "PARAM", 
-        "RETURN", "ALLOC", "ARRAY",
-        "COND", 
-            
-        // identifiers
-        "ID",
-            
-        // operators
-        // call, index
-        "CALL", "INDEX",
-            
-        // oop
-        "ACCESS", "REFACCESS",
-        "CONSTRUCT",
-            
-        // additive
-        "ADD", "SUB", "MUL", "DIV", "MOD", "FDIV", "POW",
-            
-        // comparison
-        "LTE", "GTE", "LT", "GT", "EQ", "NE", "EQ!", "NE!", "IN",
-            
-        // bitwise
-        "BXOR", "BAND", "BOR", "BRSHIFT", "BLSHIFT", 
-            
-        // boolean only
-        "AND", "OR", "XOR",
-        "AND!", "OR!",
-            
-        "CAST", "COALESCE",
-            
-        // unary
-        "IDEMPOTATE", "NEGATE",
-        "NOT", "BINV",
-        "ALLOC", "FREE",
-        "ADDR", "VALOF",
-        
-        //types
-        "FREEZE", "VOID", "REF",
-        
-        "INT8", "INT16", "INT32", "INT64", "INTD",
-        "FLOAT32", "FLOAT64", "COMPLEX128",
-        
-        "CHAR", "STRING", "BYTESTRING", "IOSTREAM",
-        
-        "ARRAY", "OF", "ARRAYLITERAL",
-        "KEYMAP", "FROM", "TO",
-            
-            
-            
-    };
-
     public Lexer(string code)
     {
         this._code = code;
@@ -136,7 +65,7 @@ public class Lexer
             this._index++;
         }
         string word = this._code.Substring(start, this._index - start);
-        var type = Keywords.Contains(word) ? TokenType.Keyword : TokenType.Identifier;
+        var type = Syntax.IsKeyword(word) ? TokenType.Keyword : TokenType.Identifier;
         return new Token(type, word);
     }
 

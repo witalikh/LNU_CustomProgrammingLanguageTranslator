@@ -1,5 +1,7 @@
 from typing import List, Union, TextIO
 
+from .._syntax.types_simple import SimpleType
+from .._syntax.types_compound import CompoundType
 from .identifiers import IdentifierNode
 from .ast_node import ASTNode
 from enum import IntFlag
@@ -38,7 +40,10 @@ class TypeLiteral(ASTNode):
         return self.valid
 
     def translate(self, file: TextIO, **kwargs) -> None:
-        file.write(self.name)
+        if self.name not in CompoundType.values():
+            file.write(SimpleType.translate(self.name))
+        else:
+            file.write(CompoundType.translate(self.name))
 
 
 class TypeNode(ASTNode):
@@ -211,7 +216,37 @@ class TypeNode(ASTNode):
 
         if isinstance(self.type, TypeLiteral):
             self.type.translate(file, **kwargs)
+            if self.category == TypeCategory.COLLECTION:
+                if self.type.name == CompoundType.ARRAY:
+                    file.write(' ')
+                    file.write('OF')
+                    file.write(' ')
+                    self.arguments[0].translate(file)
+                elif self.type.name == CompoundType.KEYMAP:
+                    file.write(' ')
+                    file.write('FROM')
+                    file.write(' ')
+                    self.arguments[0].translate(file)
+                    file.write(' ')
+                    file.write('TO')
+                    file.write(' ')
+                    self.arguments[1].translate(file)
+                else:
+                    raise NotImplementedError
+
+
         else:
             file.write('CLASSID')
             file.write(' ')
             file.write(self.type.name)
+            if self.arguments:
+                raise NotImplementedError
+
+    @staticmethod
+    def mock_simple(name):
+        return TypeNode(
+            TypeCategory.PRIMITIVE,
+            TypeLiteral(name, -1, -1),
+            None,
+            -1, -1
+        )

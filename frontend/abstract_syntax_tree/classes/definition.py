@@ -117,7 +117,7 @@ class ClassDefNode(ASTNode, Usable):
         file.write('\n')
 
         for method in self.methods_defs:
-            method.translate(file, **kwargs)
+            method.translate(file, **kwargs, class_name=self.name)
             file.write('\n')
 
         self.write_instruction(file, ['ENDCLASS', ' ', self.name])

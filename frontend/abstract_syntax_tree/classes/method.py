@@ -59,10 +59,34 @@ class ClassMethodDeclarationNode(ASTNode, AccessTypeMixin, Usable):
         ))
 
     def translate(self, file: TextIO, **kwargs) -> None:
-        # TODO: normal constructors
-        self.write_instruction(file, ['METHOD', ' ', self.function_name])
+        # # TODO: normal constructors
+        # self.write_instruction(file, ['METHOD', ' ', self.function_name])
+        # for arg in self.parameters:
+        #     arg.translate(file, **kwargs)
+        #     file.write('\n')
+        # self.function_body.translate(file, **kwargs)
+        # self.write_instruction(file, ['ENDMETHOD', ' ', self.function_name])
+
+        class_name = kwargs.pop("class_name")
+        function_name = class_name + '$' + self.function_name
+
+        if self.has_overloads and self.overload_number != 0:
+            function_name += f'$_{self.overload_number}'
+
+        self.write_instruction(file, ['METHOD', ' ', function_name])
+        self.write_instruction(file, ['PARAMS_COUNT', ' ', str(len(self.parameters) + 1)])
+
+        file.write('PARAM')
+        file.write(' ')
+        file.write('CLASSID')
+        file.write(' ')
+        file.write(class_name)
+        file.write(' ')
+        file.write('this')
+
         for arg in self.parameters:
             arg.translate(file, **kwargs)
             file.write('\n')
+        file.write('\n')
         self.function_body.translate(file, **kwargs)
-        self.write_instruction(file, ['ENDMETHOD', ' ', self.function_name])
+        self.write_instruction(file, ['ENDMETHOD', ' ', function_name])

@@ -1,3 +1,4 @@
+# pragma no import
 from typing import TextIO
 
 from .ast_node import ASTNode

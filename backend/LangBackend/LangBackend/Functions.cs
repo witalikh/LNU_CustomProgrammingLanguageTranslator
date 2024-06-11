@@ -26,7 +26,7 @@ public partial class Interpreter
 
         List<Token> body = new List<Token>();
 
-        while (tokenList[idx].Value != "ENDFUNCTION")
+        while (tokenList[idx].Value != Syntax.EndFunction)
         {
             body.Add(tokenList[idx++]);
         }
@@ -39,7 +39,7 @@ public partial class Interpreter
         this._functions[functionName] = new FunctionDefinition(paramsCount, parameters, body);
     }
     
-    private void ExecuteCall(List<Token> tokenList, ref int idx)
+    private object? ExecuteCall(List<Token> tokenList, ref int idx)
     {
         idx++;
 
@@ -70,9 +70,17 @@ public partial class Interpreter
         int localIndex = 0;
         while (localIndex < function.Body.Count)
         {
+            if (function.Body[localIndex].Value == Syntax.Return)
+            {
+                localIndex++;
+                return ParseOperand(function.Body, ref localIndex);
+            }
+            
             this.ExecuteNextToken(function.Body, ref localIndex);
         }
 
         this._stack.Pop();
+
+        return null;
     }
 }
