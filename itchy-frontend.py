@@ -18,11 +18,19 @@ def main():
     parser.add_argument(
         '-i', '--input',
         action='append',
-        required=True,
+        # required=True,
         help='Specify input file(s) for ItchyLang source code.'
              'This option can be used multiple times to add more files (as importing mechanism isn\'t implemented yet).'
              'Example: -i file1 -i file2'
     )
+
+    # Add positional argument for input files without a flag
+    parser.add_argument(
+        'positional_input',
+        nargs='*',
+        help='Specify ItchyLang source code input file(s) without using -i. Example: file1 file2'
+    )
+
     # Add output file argument with a detailed help message
     parser.add_argument(
         '-o', '--output',
@@ -47,12 +55,17 @@ def main():
     # Parse the command line arguments
     args = parser.parse_args()
 
+    # Combine both input sources: positional_input and input
+    input_files = args.positional_input
+    if args.input:
+        input_files.extend(args.input)
+
     # TODO: optimize (later, coz premature)
     # List to hold the content from all input files
     all_content = []
 
     # Read each input file and store its content
-    for input_file in args.input:
+    for input_file in input_files:
         with open(input_file, 'r') as f:
             all_content.append(f.read())
 
