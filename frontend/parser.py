@@ -3,7 +3,6 @@ from enum import IntFlag
 from ._syntax.keywords import ClassModifierKeyword, Keyword
 from ._syntax.types_modifier import TypeModifier
 from ._syntax.operators import Operator, Comparison, OperatorMethods
-from .abstract_syntax_tree import MemberOperatorNode
 
 try:
     import frontend.abstract_syntax_tree as AST
@@ -1421,7 +1420,7 @@ class Parser(object):
                 operator=operator, expression=right, line=line, position=position
             )
         else:
-            return self.parse_primary_expression(context=context)  # not sure
+            return self.parse_primary_expression(context=context)
 
     # TODO: string adequate parser, comments, refactor it into methods ...
     def parse_primary_expression(self, context: ContextFlag) -> AST.ASTNode:

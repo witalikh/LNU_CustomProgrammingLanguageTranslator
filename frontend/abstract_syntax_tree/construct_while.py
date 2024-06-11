@@ -17,8 +17,8 @@ class WhileNode(ASTNode):
         self.condition = condition
         self.while_scope = while_scope
 
-        self._curr_instance = 0
-        self.INSTANCES += 1
+        self._curr_instance = WhileNode.INSTANCES
+        WhileNode.INSTANCES += 1
 
         # self.all_paths_return = None
 

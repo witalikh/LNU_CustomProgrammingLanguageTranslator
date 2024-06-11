@@ -46,14 +46,19 @@ class FunctionDefNode(ASTNode, Usable):
         ))
 
     def translate(self, file: TextIO, **kwargs) -> None:
-        self.write_instruction(file, ['FUNCTION', ' ', self.function_name])
+        function_name = self.function_name
+
+        if self.has_overloads and self.overload_number != 0:
+            function_name += f'$_{self.overload_number}'
+
+        self.write_instruction(file, ['FUNCTION', ' ', function_name])
         self.write_instruction(file, ['PARAMS_COUNT', ' ', str(len(self.parameters))])
         for arg in self.parameters:
             arg.translate(file, **kwargs)
             file.write('\n')
         file.write('\n')
         self.function_body.translate(file, **kwargs)
-        self.write_instruction(file, ['ENDFUNCTION', ' ', self.function_name])
+        self.write_instruction(file, ['ENDFUNCTION', ' ', function_name])
 
 
 class FunctionParameter(ASTNode, Usable):

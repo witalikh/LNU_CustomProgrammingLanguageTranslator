@@ -21,8 +21,8 @@ class IfElseNode(ASTNode):
         self.if_scope = if_scope
         self.else_scope = else_scope
 
-        self._curr_instance = self.INSTANCES
-        self.INSTANCES += 1
+        self._curr_instance = IfElseNode.INSTANCES
+        IfElseNode.INSTANCES += 1
 
     def is_valid(self) -> bool:
         return all((

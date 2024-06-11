@@ -86,11 +86,10 @@ class ListLiteralNode(LiteralNode):
         ))
 
     def translate(self, file: TextIO, **kwargs) -> None:
-        self.write_instruction(file, ['ARRAY', ' ', str(len(self.elements))])
+        self.write_instruction(file, ['ARRAYLITERAL', ' ', str(len(self.elements))])
         for value in self.elements:
             value.translate(file, **kwargs)
             file.write(' ')
-        file.write('\n')
 
 
 class KeymapElementNode(LiteralNode):
