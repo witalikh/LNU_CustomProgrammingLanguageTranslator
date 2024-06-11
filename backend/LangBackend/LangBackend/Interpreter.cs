@@ -8,6 +8,8 @@ public partial class Interpreter
     private int _index;
 
     private Dictionary<string, ClassDefinition> _classes = new Dictionary<string, ClassDefinition>();
+    private object? _currentInstance = null;
+
     private Dictionary<string, FunctionDefinition> _functions = new Dictionary<string, FunctionDefinition>();
     private Dictionary<string, object?> _variables;
     private Dictionary<string, int> _labels;
@@ -33,7 +35,7 @@ public partial class Interpreter
     {
         for (int i = 0; i < this._tokens.Count; i++)
         {
-            if (this._tokens[i].Value == "LABEL")
+            if (this._tokens[i].Value == Syntax.Label)
             {
                 string labelName = this._tokens[i + 1].Value;
                 this._labels[labelName] = i + 2;
@@ -58,58 +60,58 @@ public partial class Interpreter
         var token = tokenList[idx];
         switch (token.Value)
         {
-            case "REGION":
+            case Syntax.Region:
                 this.ExecuteRegion(tokenList, ref idx);
                 break;
-            case "ENDREGION":
+            case Syntax.EndRegion:
                 this.ExecuteEndRegion(tokenList, ref idx);
                 break;
-            case "CLASS":
-            case "ENDCLASS":
-            case "METHOD":
-            case "ENDMETHOD":
-            case "FUNCTION":
+            case Syntax.Class:
+                ExecuteClassDefinition(tokenList, ref idx);
+                break;
+            case Syntax.EndClass:
+                // ENDCLASS is handled within ExecuteClassDefinition
+                break;
+            case Syntax.Method:
+                // METHOD is handled within ExecuteClassDefinition
+                break;
+            case Syntax.EndMethod:
+                // ENDMETHOD is handled within ExecuteClassDefinition
+                break;
+            case Syntax.Function:
                 this.ExecuteFunctionDefinition(tokenList, ref idx);
                 break;
-            case "ENDFUNCTION":
+            case Syntax.EndFunction:
                 // ENDFUNCTION is handled within ExecuteFunctionDefinition
                 break;
-            case "RETURN":
-            case "NOTHING":
-            case "THIS":
+            case Syntax.Return:
+            case Syntax.Nothing:
+            case Syntax.This:
                 // Skip these for now
                 break;
-            case "SET":
+            case Syntax.Set:
                 this.ExecuteSet(tokenList, ref idx);
                 break;
-            case "UNSET":
+            case Syntax.Unset:
                 this.ExecuteUnset(tokenList, ref idx);
                 break;
-            case "VALCOPY":
+            case Syntax.ValCopy:
                 this.ExecuteValCopy(tokenList, ref idx);
                 break;
-            case "REFCOPY":
+            case Syntax.RefCopy:
                 this.ExecuteRefCopy(tokenList, ref idx);
                 break;
-            case "LABEL":
+            case Syntax.Label:
                 // Skip label
                 idx += 2;
                 break;
-            case "JUMP":
+            case Syntax.Jump:
                 this.ExecuteJump(tokenList, ref idx);
                 break;
-            case "ACCESS":
-            case "REFACCESS":
+            case Syntax.MemberAccess:
+            case Syntax.ReferenceMemberAccess:
                 this.ExecuteAccess(tokenList, ref idx);
                 break;
-            // case "CONSTRUCT":
-            //     this.ExecuteConstruct(tokenList, ref idx);
-            //     break;
-            
-            
-            
-            //     // Skip these for now
-            //     break;
             default:
                 this.ParseOperand(tokenList, ref idx, true);
                 break;
@@ -145,7 +147,7 @@ public partial class Interpreter
         idx++;
         
         string regionType = tokenList[idx++].Value;
-        if (regionType != "CLASS_DEFNS" && regionType != "FUNC_DEFNS")
+        if (regionType != Syntax.ClassDefinitions && regionType != Syntax.FunctionDefinitions)
         {
             throw new Exception($"Unknown region type: {regionType}");
         }
@@ -179,9 +181,9 @@ public partial class Interpreter
         
         // TODO: type default
         this._variables[variableName] = type switch{
-            "integer" => 0,
-            "array" => new List<object>(),
-            "CLASSID" => null,
+            Syntax.Int32 => 0,
+            Syntax.Array => new List<object>(),
+            Syntax.ClassIdentifier => null,
             _ => throw new Exception($"Unknown type: {type}")
         };
     }
@@ -227,13 +229,6 @@ public partial class Interpreter
         string objectName = tokenList[idx++].Value;
         string fieldName = tokenList[idx++].Value;
         this._variables[target] = ((Dictionary<string, object>)this._variables[objectName])[fieldName];
-    }
-
-    private object? ExecuteConstruct(List<Token> tokenList, ref int idx)
-    {
-        string className = tokenList[idx++].Value;
-        string instanceName = tokenList[idx++].Value;
-        this._variables[instanceName] = Activator.CreateInstance(Type.GetType(className));
     }
 
     private object ResolveValue(string value)

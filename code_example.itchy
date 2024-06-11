@@ -1,0 +1,98 @@
+class Matrix {
+    private array[array[double]] _matrix;
+    private integer _rows;
+    private integer _cols;
+
+    public constructor(integer rows, integer cols) {
+        this._rows := rows;
+        this._cols := cols;
+
+        this._matrix := new array[array[double, cols], rows];
+    }
+
+    public constructor(array[array[double]] matr) {
+        if (len(matr) == 0) {
+            break error.Value;
+        };
+
+        this._rows = len(matr);
+        this._cols = len(matr[0]);
+
+        this._matrix := matr;
+    }
+
+    public function[Matrix] transpose(){
+        Matrix newMatrix := new Matrix(this._cols, this._rows);
+        integer i := 0;
+        while (i < this._rows) {
+            integer j := 0;
+            while (j < this._cols) {
+                newMatrix._matrix[j][i] := this._matrix[i][j];
+            }
+            i += 1;
+        }
+        return newMatrix;
+    }
+
+    public static function[Matrix] operator + (Matrix a, Matrix b){
+        if ((a._rows != b._rows) or (a._cols != b._cols))
+        {
+            break error.Value;
+        };
+
+        Matrix newMatrix := new Matrix(a._rows, a._cols);
+        newMatrix._matrix := a._matrix + b._matrix;
+        return newMatrix;
+    }
+
+    public static function[Matrix] operator * (Matrix a, Matrix b)
+    {
+        if (a._cols != b._rows)
+        {
+            break error.Value;
+        };
+
+        Matrix newMatrix := new Matrix(a._rows, b._cols);
+
+        integer i := 0;
+        while (i < a._rows) {
+            integer j := 0;
+            while (j < b._cols) {
+                integer k := 0;
+                while (k < a._cols) {
+                    newMatrix._matrix[i][j] += a._matrix[i][k] * b._matrix[k][j];
+                    k += 1;
+                }
+                j += 1;
+            }
+            i += 1;
+        }
+        return newMatrix;
+    }
+}
+
+
+Matrix a := new Matrix([[1, 2, 3], [4.5, 5.5, -10], [0, -1, 0.5]]);
+Matrix b := new Matrix([[-1], [-1], [1]]);
+Matrix c := new Matrix([[-1, -0.5, -1], [-1, 0, 0], [0, 0, 1]]);
+
+Matrix cl := a * b;
+Matrix c2 := a.transpose() + c;
+print(cl);
+print("\n");
+print(c2);
+
+
+# IDK what it does here
+function[nullable double] leastSolveSquareEquation(double a, double b, double c, boolean least) {
+    double D := b ** 2 - 4 * a * c;
+    if (D < 0) {return null;}
+
+    # if least solution is required, return least
+    if (least) {return (-b - D ** 1/2) / (2 * a);}
+    return (-b + D ** 1/2) / (2 * a);
+
+    if (D == 0){
+        return -b / (2 * a);
+    }
+}

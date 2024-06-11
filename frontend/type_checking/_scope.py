@@ -293,18 +293,58 @@ def _validate_expression(
         if not is_loop:
             error_logger.add(
                 expression.location,
-                "Break keyword cannot be used outside of loop"
+                "Empty continue keyword cannot be used outside of loop"
             )
             return False
+
+        # TODO: separate into 'error' type
+        is_valid_expr, expr_type = check_arithmetic_expression(
+            expression.catched_error, environment,
+            outermost=False,
+            context_class=current_class,
+            is_nonstatic_method=is_class_nonstatic_method
+        )
+
+        if not is_valid_expr:
+            # error is already logged
+            return False
+
+        if not match_types(expr_type, TypeNode.mock_simple(TypeEnum.INTEGER)):
+            error_logger.add(
+                expression.location,
+                f"Expected error type for continue statement, but got {expr_type}"
+            )
+            return False
+
         return True
 
     elif isinstance(expression, BreakNode):
-        if not is_loop:
+        if not is_loop and expression.loop_instance is not None:
             error_logger.add(
                 expression.location,
-                "Continue keyword cannot be used outside of loop"
+                "Empty break keyword cannot be used outside of loop"
             )
             return False
+
+        # TODO: separate into 'error' type
+        is_valid_expr, expr_type = check_arithmetic_expression(
+            expression.thrown_error, environment,
+            outermost=False,
+            context_class=current_class,
+            is_nonstatic_method=is_class_nonstatic_method
+        )
+
+        if not is_valid_expr:
+            # error is already logged
+            return False
+
+        if not match_types(expr_type, TypeNode.mock_simple(TypeEnum.INTEGER)):
+            error_logger.add(
+                expression.location,
+                f"Expected error type for break statement, but got {expr_type}"
+            )
+            return False
+
         return True
 
     else:

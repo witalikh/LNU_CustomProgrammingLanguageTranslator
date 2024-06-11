@@ -7,27 +7,27 @@ public partial class Interpreter
         string type = tokenList[idx++].Value;
         switch (type)
         {
-            case "FREEZE":
-            case "VOID":
-            case "REF":
-            case "INT8":
-            case "INT16":
-            case "INT32":
-            case "INT64":
-            case "INTD":
-            case "FLOAT32":
-            case "FLOAT64":
-            case "COMPLEX128":
-            case "CHAR":
-            case "STRING":
-            case "BYTESTRING":
-            case "IOSTREAM":
-            case "ARRAY":
-            case "OF":
-            case "ARRAYLITERAL":
-            case "KEYMAP":
-            case "FROM":
-            case "TO":
+            case Syntax.ConstTypeMode:
+            case Syntax.NullableTypeMode:
+            case Syntax.ReferenceTypeMode:
+            case Syntax.Int8:
+            case Syntax.Int16:
+            case Syntax.Int32:
+            case Syntax.Int64:
+            case Syntax.IntLarge:
+            case Syntax.Float32:
+            case Syntax.Float64:
+            case Syntax.Complex128:
+            case Syntax.Char:
+            case Syntax.String:
+            case Syntax.ByteString:
+            case Syntax.IoStream:
+            case Syntax.Array:
+            case Syntax.Of:
+            case Syntax.ArrayLiteral:
+            case Syntax.Keymap:
+            case Syntax.From:
+            case Syntax.To:
                 break;
             default:
                 break;

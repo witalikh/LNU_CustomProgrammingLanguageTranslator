@@ -1,9 +1,12 @@
 from typing import TextIO
+
+from .identifiers import IdentifierNode
 from .ast_node import ASTNode
 from .ast_mixins import Usable
 from .literals import CalculationNode
 from .scope import ScopeNode
 from .typing import TypeNode
+# from .operators.membership import MemberOperatorNode
 
 
 class FunctionDefNode(ASTNode, Usable):
@@ -118,16 +121,37 @@ class FunctionCallNode(CalculationNode):
         else:
             file.write('CALL')
 
+
+
+        if is_pure_func := isinstance(self.identifier, IdentifierNode):
+            # TODO: constructor like CONSTRUCT CLASS
+            name = ''.join([
+                self.identifier.name,
+                f"$_{self.overload_number}" if self.is_overload and self.overload_number != 0 else '',
+            ])
+            count = len(self.arguments) + 1
+        elif is_static_func := isinstance(self.identifier, TypeNode):
+            name = 'pass'
+            count = len(self.arguments) + 1
+        else:
+            name = ''.join([
+                self.identifier.associated_class.name,
+                '$',
+                self.identifier.right.name,
+                f"$_{self.overload_number}" if self.is_overload and self.overload_number != 0 else '',
+            ])
+            count = len(self.arguments) + 2
+
         file.write(' ')
-        file.write(str(len(self.arguments) + 1))
+        file.write(str(count))
         file.write(' ')
 
-        if self.is_overload and self.overload_number != 0:
-            self.identifier.translate(file, suffix=f"$_{self.overload_number}")
-        else:
-            self.identifier.translate(file, **kwargs)
-        file.write(' ')
+        file.write(name)
+
+        if not is_pure_func and not is_static_func:
+            file.write(' ')
+            self.identifier.left.translate(file, **kwargs)
 
         for argument in self.arguments:
-            argument.translate(file, **kwargs)
             file.write(' ')
+            argument.translate(file, **kwargs)

@@ -188,7 +188,7 @@ def _validate_class_definition(
             concrete_class,
             static_method
         )
-        for static_method in concrete_class.methods_defs
+        for static_method in concrete_class.static_methods_defs
     ]
 
     valid_methods = [

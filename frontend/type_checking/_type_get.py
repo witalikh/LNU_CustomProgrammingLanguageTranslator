@@ -42,7 +42,7 @@ def check_arithmetic_expression(
     outermost: bool = False,
     **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
-
+    allow_compound_constructor = context.pop('allow_compound_constructor', False)
     if isinstance(expression, LiteralNode):
         valid_expr, expr_type = _check_primitive_literal(literal=expression, environment=environment, **context)
         expression.valid = valid_expr
@@ -69,7 +69,10 @@ def check_arithmetic_expression(
         return valid_expr, expr_type
 
     elif isinstance(expression, IndexNode):
-        res = _get_type_of_indexation_call(expression=expression, environment=environment, **context)
+        res = _get_type_of_indexation_call(
+            expression=expression, environment=environment, **context,
+            allow_compound_constructor=allow_compound_constructor
+        )
         if len(res) == 2:
             valid_expr, expr_type = res
         elif len(res) == 3:
@@ -96,7 +99,6 @@ def check_arithmetic_expression(
         valid_expr, expr_type = _check_assignment(expression=expression, environment=environment, **context, outermost=outermost)
         expression.valid = valid_expr
         return valid_expr, expr_type
-
     else:
         # print(expression)
         error_logger.add(
@@ -213,6 +215,8 @@ def _check_member(
             reason=f"Invalid expression on the left side of the membership {operator} operator"
         )
         return False, None
+    else:
+        expression.associated_class = class_type
 
     class_instance = get_class_by_name(
         class_name=class_type.name
@@ -466,7 +470,12 @@ def _check_unary_operator(
     environment: dict[str, TypeNode],
     **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
-    valid_expr, expression_type = check_arithmetic_expression(expression=unary_op_expr.expression, environment=environment, **context)
+    allow_compound_constructor = (unary_op_expr.operator == Operator.NEW_INSTANCE)
+
+    valid_expr, expression_type = check_arithmetic_expression(
+        expression=unary_op_expr.expression, environment=environment, **context,
+        allow_compound_constructor=allow_compound_constructor
+    )
     operator = unary_op_expr.operator
     if unary_op_expr.is_arithmetic:
         res = __get_type_of_arithmetic_unary_operator(expression_type=expression_type, operator=operator, location=unary_op_expr.location)
@@ -655,6 +664,8 @@ def __get_method_call(
             reason="Invalid expression for method call"
         )
         return False, None
+    else:
+        expression.identifier.associated_class = class_type_node
 
     potentially_method_name = function_id.right
     if not isinstance(potentially_method_name, IdentifierNode):
@@ -785,6 +796,7 @@ def _get_type_of_indexation_call(
     environment: dict[str, TypeNode],
     **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
+    allow_compound_constructor = context.pop('allow_compound_constructor', False)
     valid_expr, expression_type = check_arithmetic_expression(expression=expression.variable, environment=environment, **context)
 
     if not valid_expr:
@@ -832,10 +844,11 @@ def _get_type_of_indexation_call(
                 reason="No argument provided for collection type"
             )
         if len(argument_signature) > 1:
-            error_logger.add(
-                location=expression.location,
-                reason="Too many arguments for collection type"
-            )
+            if True:
+                error_logger.add(
+                    location=expression.location,
+                    reason="Too many arguments for collection type"
+                )
         if expression_type.name == TypeEnum.ARRAY:
             cpt = common_primitive_type(left_type=argument_signature[1].name, right_type=TypeEnum.INTEGER)
             if not cpt or cpt != TypeEnum.INTEGER:
