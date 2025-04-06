@@ -1,7 +1,7 @@
 from typing import TextIO
 
 from .ast_node import ASTNode
-from .._syntax.operators import Assignment
+from ..syntax import Assignment
 
 
 class VariableDeclarationNode(ASTNode):
