@@ -1,4 +1,4 @@
-from .._syntax.operators import Assignment
+from ..syntax import Assignment
 from ..abstract_syntax_tree import (
     TypeNode,
     ProgramNode,
