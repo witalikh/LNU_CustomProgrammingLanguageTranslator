@@ -1,6 +1,6 @@
 from typing import Union, TextIO
 
-from frontend._syntax.operators import OperatorMethods
+from frontend.syntax import OperatorMethods
 from ..literals import CalculationNode
 from .indexation import IndexNode, IdentifierNode
 from ..functions import FunctionCallNode
