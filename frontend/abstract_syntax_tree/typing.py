@@ -1,7 +1,7 @@
 from typing import List, Union, TextIO
 
-from .._syntax.types_simple import SimpleType
-from .._syntax.types_compound import CompoundType
+from ..syntax import SimpleType, KEYWORDS, TokenType
+from ..syntax import CompoundType
 from .identifiers import IdentifierNode
 from .ast_node import ASTNode
 from enum import IntFlag
@@ -40,10 +40,10 @@ class TypeLiteral(ASTNode):
         return self.valid
 
     def translate(self, file: TextIO, **kwargs) -> None:
-        if self.name not in CompoundType.values():
-            file.write(SimpleType.translate(self.name))
-        else:
+        if KEYWORDS.get(self.name, (None, ...))[0] == TokenType.COMPOUND_TYPE:
             file.write(CompoundType.translate(self.name))
+        else:
+            file.write(SimpleType.translate(self.name))
 
 
 class TypeNode(ASTNode):
