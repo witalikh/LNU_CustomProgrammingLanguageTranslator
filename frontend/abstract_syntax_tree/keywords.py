@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import TextIO
 
-from .._syntax.operators import OperatorMethods, Assignment, Operator
+from ..syntax import OperatorMethods, Assignment, Operator
 from .ast_node import ASTNode
 
 
