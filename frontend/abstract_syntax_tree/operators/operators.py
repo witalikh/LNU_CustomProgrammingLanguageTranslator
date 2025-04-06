@@ -1,4 +1,4 @@
-from frontend._syntax.operators import OperatorMethods, Assignment
+from frontend.syntax import OperatorMethods, Assignment
 
 from frontend.abstract_syntax_tree.ast_node import ASTNode
 from frontend.abstract_syntax_tree.literals import CalculationNode
