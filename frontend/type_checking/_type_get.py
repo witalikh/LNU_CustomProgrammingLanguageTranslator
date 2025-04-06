@@ -1,6 +1,6 @@
 from typing import Tuple, Union, TypedDict, Unpack
 
-from .._syntax.operators import OperatorMethods, Operator
+from ..syntax import OperatorMethods, Operator
 
 from ..abstract_syntax_tree import (
     ASTNode, TypeNode, TypeCategory,
@@ -22,7 +22,7 @@ from ..semantics import TypeEnum
 
 from ._type_cast import common_base, common_primitive_type
 from ._type_match import match_types
-from .._syntax.operators import Assignment
+from ..syntax import Assignment
 
 from .shared import error_logger
 
@@ -797,7 +797,8 @@ def _get_type_of_indexation_call(
     **context: Unpack[_ContextParams]
 ) -> Tuple[bool, Union[TypeNode, None]]:
     allow_compound_constructor = context.pop('allow_compound_constructor', False)
-    valid_expr, expression_type = check_arithmetic_expression(expression=expression.variable, environment=environment, **context)
+    valid_expr, expression_type = check_arithmetic_expression(
+        expression=expression.variable, environment=environment, **context)
 
     if not valid_expr:
         # error is already logged
